@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ThirdProvider from "./Provider/WalletContextProvider";
+require("@solana/wallet-adapter-react-ui/styles.css");
 import Header from "./components/header";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,8 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Header/>
-        {children}
+        <ThirdProvider>
+          <Header />
+          {children}
+        </ThirdProvider>
       </body>
     </html>
   )
