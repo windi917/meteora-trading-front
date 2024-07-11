@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 35, 31, 32;
+  --background-end-rgb: 35, 31, 32;
+  --card-bg-color: 35, 31, 32;
+  --card-border-color: 85, 85, 85;
+  --card-text-color: 255, 255, 255;
+  --button-bg-color: 255, 255, 255;
+  --button-text-color: 0, 0, 0;
+}
+
+body {
+  background-color: rgb(var(--background-start-rgb));
+  color: rgb(var(--foreground-rgb));
+  margin: 0;
+  padding: 0;
+  font-family: 'JetBrains', monospace !important;
+  font-size: 16px;
+}
+
+h1, h2 {
+  font-family: 'JetBrains', monospace;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.container {
+  text-align: center;
+  padding: 20px;
+}
+
+.vaults {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.vault-card {
+  background-color: rgb(var(--card-bg-color));
+  color: rgb(var(--card-text-color));
+  border: 1px solid rgb(var(--card-border-color));
+  border-radius: 12px;
+  padding: 20px;
+  /* width: 100%; */
+  /* max-width: 400px; */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.font-l {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.font-s {
+  font-size: 0.875rem;
+  color: rgba(var(--foreground-rgb), 0.75);
+}
+
+.font-m {
+  font-size: 1.25rem;
+}
+
+.chart {
+  width: 100%;
+  height: 300px;
+  margin-bottom: 1rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.footer-item {
+  text-align: left;
+}
+
+.footer-item p:first-child {
+  font-size: 0.75rem;
+  color: rgba(var(--foreground-rgb), 0.75);
+}
+
+.footer-item p:last-child {
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.deposit-button {
+  background-color: rgb(var(--button-bg-color));
+  border: none;
+  color: rgb(var(--button-text-color));
+  padding: 10px 20px;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 1rem;
+  border-radius: 1rem;
+  align-self: center; /* Center the button within the card */
+  width: 100%;
+}
+
+.time-interval-buttons {
+  display: flex;
+  gap: 1rem; /* Adjust the value as per your spacing preference */
+}
+
+.time-interval-buttons button {
+  border: none;
+  cursor: pointer;
+  transition: filter 0.3s, background-color 0.3s;
+  filter: brightness(0.3); /* Increase brightness on hover */
+  font-size: 0.8rem;
+}
+
+.time-interval-buttons button:hover {
+  filter: brightness(1.2); /* Increase brightness on hover */
+}
+
+.time-interval-buttons button:active {
+  filter: brightness(0.8); /* Decrease brightness on click */
+}
+
+.time-interval-buttons button.active {
+  filter: brightness(1.1); /* Slightly increase brightness for active button */
+}
