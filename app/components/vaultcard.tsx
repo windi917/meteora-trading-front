@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useRouter } from "next/navigation";
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+
+import { useWallet } from "@solana/wallet-adapter-react";
+import { JwtTokenContext } from '../Provider/JWTTokenProvider';
 
 type VaultCardProps = {
   title: string;
@@ -28,12 +31,14 @@ type PriceData = [number, number];
 
 function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardProps) {
   const router = useRouter();
-
+  const { userId, userRole } = useContext(JwtTokenContext);
+  const { publicKey, connected } = useWallet();
   const [chartData, setChartData] = useState<ChartData>({
     labels: [],
     datasets: [],
   });
 
+  console.log("##########", userId, userRole, publicKey?.toBase58(), connected);
   const [selectedInterval, setSelectedInterval] = useState<string>('1M'); // Default to 1 month
 
   const fetchData = async (days: string) => {
