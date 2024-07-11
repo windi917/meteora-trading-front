@@ -31,14 +31,13 @@ type PriceData = [number, number];
 
 function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardProps) {
   const router = useRouter();
-  const { userId, userRole } = useContext(JwtTokenContext);
-  const { publicKey, connected } = useWallet();
+  // const { userId, userRole } = useContext(JwtTokenContext);
+  // const { publicKey, connected } = useWallet();
   const [chartData, setChartData] = useState<ChartData>({
     labels: [],
     datasets: [],
   });
 
-  console.log("##########", userId, userRole, publicKey?.toBase58(), connected);
   const [selectedInterval, setSelectedInterval] = useState<string>('1M'); // Default to 1 month
 
   const fetchData = async (days: string) => {
