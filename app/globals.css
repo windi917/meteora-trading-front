@@ -28,7 +28,8 @@ body {
   right: 20px;
 }
 
-h1, h2 {
+h1,
+h2 {
   font-family: 'JetBrains', monospace;
 }
 
@@ -40,7 +41,6 @@ h1 {
 
 h2 {
   font-size: 1.25rem;
-  margin-bottom: 0.5rem;
 }
 
 .subtitle {
@@ -125,31 +125,286 @@ h2 {
   cursor: pointer;
   margin-top: 1rem;
   border-radius: 1rem;
-  align-self: center; /* Center the button within the card */
+  align-self: center;
+  /* Center the button within the card */
   width: 100%;
 }
 
 .time-interval-buttons {
   display: flex;
-  gap: 1rem; /* Adjust the value as per your spacing preference */
+  gap: 1rem;
+  /* Adjust the value as per your spacing preference */
 }
 
 .time-interval-buttons button {
   border: none;
   cursor: pointer;
   transition: filter 0.3s, background-color 0.3s;
-  filter: brightness(0.3); /* Increase brightness on hover */
+  filter: brightness(0.3);
+  /* Increase brightness on hover */
   font-size: 0.8rem;
 }
 
 .time-interval-buttons button:hover {
-  filter: brightness(1.2); /* Increase brightness on hover */
+  filter: brightness(1.2);
+  /* Increase brightness on hover */
 }
 
 .time-interval-buttons button:active {
-  filter: brightness(0.8); /* Decrease brightness on click */
+  filter: brightness(0.8);
+  /* Decrease brightness on click */
 }
 
 .time-interval-buttons button.active {
-  filter: brightness(1.1); /* Slightly increase brightness for active button */
+  filter: brightness(1.1);
+  /* Slightly increase brightness for active button */
+}
+
+/*  */
+.App {
+  /* font-family: Arial, sans-serif; */
+  padding: 20px;
+}
+
+.liquidity-info {
+  margin-bottom: 20px;
+  padding: 20px;
+}
+
+.total-liquidity,
+.fees-earned {
+  margin-bottom: 20px;
+  background-color: #303030;
+  border: 0px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 20px;
+  width: 48%;
+}
+
+.balances,
+.unclaimed-fees {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin: 20px;
+  padding: 20px;
+  width: 48%;
+}
+
+.your-position {
+  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 20px;
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.position-card {
+  border: 1px solid #808080;
+  border-radius: 10px;
+  align-items: center; 
+}
+
+.position-card-body {
+  border-top: 1px solid #808080;
+  /* background-color: #303030; */
+}
+
+.add-position,
+.position {
+  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.position {
+  border: none;
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tabs button.active {
+  border-bottom: 2px solid #6366f1;
+  color: #6366f1;
+}
+
+.position-border {
+  border-bottom: 2px solid #303030;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.position-deposit {
+  border: 1px solid;
+  border-radius: 5px;
+  padding: 10px;
+  justify-content: space-between;
+}
+
+.position-input {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  width: 48%;
+}
+
+.position-input input {
+  padding: 10px;
+  background-color: unset;
+  text-align: right;
+}
+
+.position-button {
+  padding: 10px 20px;
+  background-color: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/*****************************/
+.swap-input {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.swap-input input {
+  padding: 10px;
+  background-color: unset;
+  text-align: right;
+}
+/*****************************/
+
+/*****************************/
+.depositContainer {
+  /* background-color: #1c1c1e; */
+  color: white;
+  padding-left: 20px;
+  border-radius: 10px;
+  width: 400px;
+  /* Adjust width as needed */
+  margin: 0 auto;
+}
+
+.depositTabs {
+  display: flex;
+  margin-bottom: 20px;
+}
+
+.depositTabs button {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  text-align: left;
+}
+
+.depositTabs .active {
+  border-bottom: 2px solid white;
+  text-align: left;
+}
+
+.depositContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.depositContent label {
+  margin-bottom: 10px;
+}
+
+.amountInput {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.currencySelect {
+  display: flex;
+  align-items: center;
+  background-color: #2c2c2e;
+  padding: 10px;
+  border-radius: 5px 0 0 5px;
+  border: 1px solid #333;
+}
+
+.currencySelect img {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+}
+
+.currencySelect span {
+  color: white;
+  margin-right: 5px;
+}
+
+.currencySelect select {
+  background: none;
+  border: none;
+  color: white;
+  appearance: none;
+  cursor: pointer;
+}
+
+.amount {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 0 5px 5px 0;
+  background-color: #2c2c2e;
+  color: white;
+}
+
+.quickButtons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.quickButtons button {
+  flex: 1;
+  background-color: #2c2c2e;
+  border: 1px solid #333;
+  color: white;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  margin-right: 3px;
+  transition: background-color 0.3s;
+}
+
+/* Hover effect */
+.quickButtons button:hover {
+  background-color: #444;
+}
+
+.quickButtons button:active {
+  background-color: #666;
+  border-color: #777;
+}
+
+/* Active effect */
+.quickButtons button.active {
+  background-color: #555;
+  border-color: #666;
 }

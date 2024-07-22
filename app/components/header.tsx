@@ -31,6 +31,7 @@ function Header() {
         <nav className="space-x-10">
           <NavLink href="/vaults">VAULTS</NavLink>
           <NavLink href="/portfolio">PORTFOLIO</NavLink>
+          <NavLink href="/dashboard">DASHBOARD</NavLink>
           <NavLink href="/about">ABOUT</NavLink>
         </nav>
       </div>

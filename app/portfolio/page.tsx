@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import VaultCard from "../components/vaultcard";
-import "./portfolio.css";
 
 function Portfolio() {
   const [amount, setAmount] = useState<number | string>(0.1);
