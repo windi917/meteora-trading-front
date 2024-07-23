@@ -5,7 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Buffer } from "buffer";
-import { API_URL } from "../config";
+import { BACKEND_API_URL } from "../config";
 
 import { JwtTokenContext } from "../Provider/JWTTokenProvider";
 
@@ -32,7 +32,7 @@ const WalletInteraction: FC = () => {
       const config = {
         method: "post",
         maxBodyLength: Infinity,
-        url: API_URL + "/user/login",
+        url: BACKEND_API_URL + "/user/login",
         headers: {
           "Content-Type": "application/json",
         },
@@ -83,7 +83,7 @@ const WalletInteraction: FC = () => {
       const config = {
         method: "post",
         maxBodyLength: Infinity,
-        url: API_URL + "/user/signup",
+        url: BACKEND_API_URL + "/user/signup",
         headers: {
           "Content-Type": "application/json",
         },
