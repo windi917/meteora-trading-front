@@ -23,26 +23,6 @@ interface CustomRadioProps {
   checked: boolean;
 }
 
-// Sample data for the chart
-// const data = [
-//   { name: '150.16', value: 30 },
-//   { name: '151.12', value: 50 },
-//   { name: '152.09', value: 45 },
-//   { name: '153.06', value: 60 },
-//   { name: '154.05', value: 70 },
-//   { name: '155.03', value: 90 },
-//   { name: '156.03', value: 100 },
-//   { name: '157.03', value: 80 },
-//   { name: '158.04', value: 60 },
-//   { name: '159.05', value: 40 },
-//   { name: '160.07', value: 20 },
-//   { name: '161.10', value: 30 },
-//   { name: '162.13', value: 40 },
-//   { name: '163.17', value: 50 },
-//   { name: '164.22', value: 20 },
-//   { name: '165.27', value: 10 },
-// ];
-
 const Container = styled(Box)(({ theme }) => ({
   padding: theme.spacing(4),
 }));
@@ -133,10 +113,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   }
 
   let data;
-  if (position === undefined) {
-    if (!activeBin)
-      return;
-
+  if (position === undefined && activeBin ) {
     let charData = [];
     for (let i = -34; i <= 34; i++) {
       charData[i + 34] = {
@@ -146,7 +123,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
     }
 
     data = charData;
-  } else {
+  } else if ( position !== undefined && activeBin ) {
     data = position.positionBinData.map(e => ({
       'name': e.binId,
       'value': e.pricePerToken
