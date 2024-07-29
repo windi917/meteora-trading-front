@@ -103,9 +103,9 @@ const WalletInteraction: FC = () => {
     }
   }, [publicKey, signMessage, handleLogin]);
 
-  if (!publicKey || !signMessage) {
-    return;
-  }
+  // if (!publicKey || !signMessage) {
+  //   return;
+  // }
   
   return (
     <div>
