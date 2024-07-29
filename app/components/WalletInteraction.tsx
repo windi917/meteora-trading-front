@@ -2,7 +2,7 @@ import { FC, useCallback, useEffect, useContext, useState } from "react";
 import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Buffer } from "buffer";
 import { BACKEND_API_URL } from "../config";
@@ -15,7 +15,6 @@ const WalletInteraction: FC = () => {
   };
 
   const { setJwtToken, setUserRole, setUserId } = useContext(JwtTokenContext);
-
   const [isRegistered, setIsRegistered] = useState(true);
 
   const handleLogin = useCallback(async () => {
@@ -104,11 +103,16 @@ const WalletInteraction: FC = () => {
     }
   }, [publicKey, signMessage, handleLogin]);
 
+  if (!publicKey || !signMessage) {
+    return;
+  }
+  
   return (
     <div>
+      <ToastContainer />
       <div className="flex" style={{ alignItems: 'center' }}>
         <WalletMultiButton />
-        { connected && isRegistered === false ? (
+        {connected && isRegistered === false ? (
           <button
             className="bg-[#ccf869] border-2 mt-1 border-whitesmoke font-primaryRegular leading-normal py-2 px-6 rounded-3xl text-[0.9em] duration-300 ease-in-out text-black hover:bg-[#bbe759] hover:text-black"
             onClick={handleSignup}

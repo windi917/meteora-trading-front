@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { JwtTokenProvider } from "./Provider/JWTTokenProvider";
+import { MeteoraProvider } from "./Provider/MeteoraProvider";
 import ThirdProvider from "./Provider/WalletContextProvider";
 require("@solana/wallet-adapter-react-ui/styles.css");
 import Header from "./components/header";
@@ -22,10 +23,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <JwtTokenProvider>
-          <ThirdProvider>
-            <Header />
-            {children}
-          </ThirdProvider>
+          <MeteoraProvider>
+            <ThirdProvider>
+              <Header />
+              {children}
+            </ThirdProvider>
+          </MeteoraProvider>
         </JwtTokenProvider>
       </body>
     </html>

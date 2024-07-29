@@ -82,7 +82,6 @@ h2 {
 
 .font-s {
   font-size: 0.875rem;
-  color: rgba(var(--foreground-rgb), 0.75);
 }
 
 .font-m {

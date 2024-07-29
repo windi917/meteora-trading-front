@@ -4,9 +4,6 @@ import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 
-import { useWallet } from "@solana/wallet-adapter-react";
-import { JwtTokenContext } from '../Provider/JWTTokenProvider';
-
 type VaultCardProps = {
   title: string;
   token: string;
@@ -31,8 +28,6 @@ type PriceData = [number, number];
 
 function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardProps) {
   const router = useRouter();
-  // const { userId, userRole } = useContext(JwtTokenContext);
-  // const { publicKey, connected } = useWallet();
   const [chartData, setChartData] = useState<ChartData>({
     labels: [],
     datasets: [],
@@ -94,7 +89,7 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
   };
 
   return (
-    <div className="vault-card" style={{width: `${width}%`}}>
+    <div className="vault-card" style={{ width: `${width}%` }}>
       <h2 className="font-l">{title}</h2>
       <p className="font-s mb-8">Self-managed, auto-rebalancing defi pools.</p>
       <div className="flex mb-8">
@@ -172,10 +167,10 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
           <p>1 day</p>
         </div>
       </div>
-      { button === true ? (
-        <button className="deposit-button" onClick={()=>{router.push("/portfolio")}}>
+      {button === true ? (
+        <button className="deposit-button" onClick={() => { router.push(`/vaults/${token}`) }}>
           Deposit
-          </button>
+        </button>
       ) : null}
     </div>
   );
