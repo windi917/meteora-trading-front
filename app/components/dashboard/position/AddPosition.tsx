@@ -8,7 +8,7 @@ import { Formik, Form, Field } from 'formik';
 import { styled } from '@mui/system';
 
 import { MTActiveBin, MTPair, MTPosition } from '@/app/config';
-import { getBalances, addPosition, addLiquidity } from '@/app/api/api';
+import { getBinIdByPrice, getPriceByBinId, getBalances, addPosition, addLiquidity } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 
 interface AddPositionProps {
@@ -80,6 +80,29 @@ const CustomRadio = styled(Box, { shouldForwardProp: (prop) => prop !== 'checked
   },
 }));
 
+const StyledTextField = styled(TextField)`
+  & .MuiOutlinedInput-root {
+    & fieldset {
+      border-color: #ffffff;
+    }
+    &:hover fieldset {
+      border-color: #ffffff;
+    }
+    &.Mui-focused fieldset {
+      border-color: #ffffff;
+    }
+    & input {
+      color: #ffffff;  // Input text color
+    }
+  }
+  & .MuiInputLabel-outlined {
+    color: #ffffff;  // Label text color
+  }
+  & .MuiInputBase-input {
+    color: #ffffff;  // Input text color for focused state
+  }
+`;
+
 const strategyDescription = [
   "Spot provides a uniform distribution that is versatile and risk-adjusted, suitable for any type of market and conditions. This is similar to setting a CLMM price range.",
   "Curve is ideal for a concentrated approach that aims to maximise capital efficiency. This is great for stables or pairs where the price does not change very often.",
@@ -92,28 +115,29 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   const [yBalance, setYBalance] = useState(0);
   const [xAmount, setXAmount] = useState(0);
   const [yAmount, setYAmount] = useState(0);
-  const [minBinId, setMinBinId] = useState(position !== undefined ? position.lowerBinId : (activeBin ? activeBin.binId - 34 : 0));
-  const [maxBinId, setMaxBinId] = useState(position !== undefined ? position.upperBinId : (activeBin ? activeBin.binId + 34 : 0));
   const [selectedStrategy, setSelectedStrategy] = useState('SPOT');
   const [selectedToken, setSelectedToken] = useState('SOL');
   const { jwtToken } = useContext(JwtTokenContext);
+
+  const [minBinId, setMinBinId] = useState(0);
+  const [maxBinId, setMaxBinId] = useState(0);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(0);
 
   let disableDeposit = 'none';
   if (activeBin) {
     if (position !== undefined) {
       if (activeBin.pricePerToken > position.positionBinData[position.positionBinData.length - 1].pricePerToken) {
         disableDeposit = 'base';
-        // setXAmount(0);
       }
       if (activeBin.pricePerToken < position.positionBinData[0].pricePerToken) {
         disableDeposit = 'quote';
-        // setYAmount(0);
       }
     }
   }
 
   let data;
-  if (position === undefined && activeBin ) {
+  if (position === undefined && activeBin) {
     let charData = [];
     for (let i = -34; i <= 34; i++) {
       charData[i + 34] = {
@@ -123,7 +147,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
     }
 
     data = charData;
-  } else if ( position !== undefined && activeBin ) {
+  } else if (position !== undefined && activeBin) {
     data = position.positionBinData.map(e => ({
       'name': e.binId,
       'value': e.pricePerToken
@@ -154,6 +178,25 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   useEffect(() => {
     const fetchData = async () => {
       await fetchBalance();
+
+      if (!mtPair)
+        return;
+
+      const minBin = (position !== undefined ? position.lowerBinId : (activeBin ? activeBin.binId - 34 : 0));
+      const maxBin = (position !== undefined ? position.upperBinId : (activeBin ? activeBin.binId + 34 : 0));
+
+      const minP = await getPriceByBinId(mtPair.address, minBin);
+      const maxP = await getPriceByBinId(mtPair.address, maxBin);
+
+      if (minP.success === false || maxP.success === false) {
+        toast.error("Get Price by Bin ID fail!");
+        return;
+      }
+
+      setMinBinId(minBin);
+      setMaxBinId(maxBin);
+      setMinPrice(Number(minP.response.price) * 1000.0);
+      setMaxPrice(Number(maxP.response.price) * 1000.0);
     };
 
     fetchData(); // Call the async function
@@ -162,6 +205,32 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   const handleStrategyChange = (value: string) => {
     setSelectedStrategy(value);
   };
+
+  const handleMinIdChanged = async (e: any) => {
+    setMinPrice(Number(e.target.value));
+    if (!mtPair)
+      return;
+
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+
+    if (binId.success === false)
+      return;
+
+    setMinBinId(binId.response.binId);
+  }
+
+  const handleMaxIdChanged = async (e: any) => {
+    setMaxPrice(Number(e.target.value));
+    if (!mtPair)
+      return;
+
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+
+    if (binId.success === false)
+      return;
+
+    setMaxBinId(binId.response.binId);
+  }
 
   const handleAddLiquidity = async () => {
     if (!mtPair || !activeBin) {
@@ -197,71 +266,71 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   return (
     <div className="add-position max-w-3xl mx-auto ">
       {position === undefined ? null : (
-        <>
-          <p>Enter deposit amount</p>
-          <div className="position-border flex justify-between pt-6">
-            <div className="position-input">
-              <div className="position-deposit flex pb-2">
-                <div className="flex" style={{ alignItems: 'center' }}>
-                  <Image src="https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                  <p className="font-m pl-2 pr-4">SOL</p>
-                </div>
-                {disableDeposit === 'base' ? (
-                  <input
-                    type="number"
-                    id="sol"
-                    value={0}
-                    disabled={true}
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    id="sol"
-                    value={xAmount}
-                    onChange={(e) => setXAmount(parseFloat(e.target.value))}
-                  />
-                )}
+      <>
+        <p>Enter deposit amount</p>
+        <div className="position-border flex justify-between pt-6">
+          <div className="position-input">
+            <div className="position-deposit flex pb-2">
+              <div className="flex" style={{ alignItems: 'center' }}>
+                <Image src="https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">SOL</p>
               </div>
-              <div className="flex justify-between">
-                <p>Balance: {xBalance}</p>
-                <div className="quickButtons">
-                  <button className="font-s" onClick={() => setXAmount(xBalance)}>MAX</button>
-                  <button className="font-s" onClick={() => setXAmount(xBalance / 2)}>HALF</button>
-                </div>
-              </div>
+              {disableDeposit === 'base' ? (
+                <input
+                  type="number"
+                  id="sol"
+                  value={0}
+                  disabled={true}
+                />
+              ) : (
+                <input
+                  type="number"
+                  id="sol"
+                  value={xAmount}
+                  onChange={(e) => setXAmount(parseFloat(e.target.value))}
+                />
+              )}
             </div>
-            <div className="position-input">
-              <div className="position-deposit flex pb-2">
-                <div className="flex" style={{ alignItems: 'center' }}>
-                  <Image src="https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                  <p className="font-m pl-2 pr-4">USDC</p>
-                </div>
-                {disableDeposit === 'quote' ? (
-                  <input
-                    type="number"
-                    id="usdc"
-                    value={0}
-                    disabled
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    id="usdc"
-                    value={yAmount}
-                    onChange={(e) => setYAmount(parseFloat(e.target.value))}
-                  />
-                )}
-              </div>
-              <div className="flex justify-between">
-                <p>Balance: {yBalance}</p>
-                <div className="quickButtons">
-                  <button className="font-s" onClick={() => setYAmount(yBalance)}>MAX</button>
-                  <button className="font-s" onClick={() => setYAmount(yBalance / 2)}>HALF</button>
-                </div>
+            <div className="flex justify-between">
+              <p>Balance: {xBalance}</p>
+              <div className="quickButtons">
+                <button className="font-s" onClick={() => setXAmount(xBalance)}>MAX</button>
+                <button className="font-s" onClick={() => setXAmount(xBalance / 2)}>HALF</button>
               </div>
             </div>
           </div>
-        </>
+          <div className="position-input">
+            <div className="position-deposit flex pb-2">
+              <div className="flex" style={{ alignItems: 'center' }}>
+                <Image src="https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">USDC</p>
+              </div>
+              {disableDeposit === 'quote' ? (
+                <input
+                  type="number"
+                  id="usdc"
+                  value={0}
+                  disabled
+                />
+              ) : (
+                <input
+                  type="number"
+                  id="usdc"
+                  value={yAmount}
+                  onChange={(e) => setYAmount(parseFloat(e.target.value))}
+                />
+              )}
+            </div>
+            <div className="flex justify-between">
+              <p>Balance: {yBalance}</p>
+              <div className="quickButtons">
+                <button className="font-s" onClick={() => setYAmount(yBalance)}>MAX</button>
+                <button className="font-s" onClick={() => setYAmount(yBalance / 2)}>HALF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
       )}
       <Container className="max-w-3xl mx-auto">
         <SectionTitle variant="h6">Select Volatility Strategy</SectionTitle>
@@ -317,7 +386,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
           You don&#39;t have liquidity in this position
         </Typography>
         <Formik
-          initialValues={{ minPrice: '', maxPrice: '', numBins: '' }}
+          initialValues={{ minPrice: minPrice, maxPrice: maxPrice, numBins: maxBinId - minBinId + 1 }}
           onSubmit={(values) => {
             console.log(values);
           }}
@@ -326,9 +395,25 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
             <Form>
               <FormContainer>
                 <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Field as={TextField} name="minPrice" label="Min Bin Id" variant="outlined" fullWidth value={minBinId} onChange={(e: any) => { if (position === undefined) setMinBinId(e.target.value); }} />
-                  <Field as={TextField} name="maxPrice" label="Max Bin Id" variant="outlined" fullWidth value={maxBinId} onChange={(e: any) => { if (!position === undefined) setMaxBinId(e.target.value); }} />
-                  <Field as={TextField} name="numBins" label="Num Bins" variant="outlined" fullWidth value={maxBinId - minBinId + 1} />
+                  <Field as={StyledTextField}
+                    name="minPrice"
+                    label="Min Bin Id"
+                    variant="outlined"
+                    fullWidth
+                    style={{ color: '#ffffff' }}
+                    value={minPrice}
+                    onChange={handleMinIdChanged}
+                  />
+                  <Field as={StyledTextField}
+                    name="maxPrice"
+                    label="Max Bin Id"
+                    variant="outlined"
+                    fullWidth
+                    style={{ color: '#ffffff' }}
+                    value={maxPrice}
+                    onChange={handleMaxIdChanged}
+                  />
+                  <Field as={StyledTextField} name="numBins" label="Num Bins" variant="outlined" fullWidth value={maxBinId - minBinId + 1} />
                 </Box>
                 <Box display="flex" justifyContent="center" mt={2}>
                   <Button variant="contained" color="primary" onClick={handleAddLiquidity}>

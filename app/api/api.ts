@@ -73,6 +73,42 @@ export const getActiveBin = async (pool: string) => {
   }
 };
 
+export const getBinIdByPrice = async (pool: string, price: number) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/binId?pool=${pool}&price=${price}`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+};
+
+export const getPriceByBinId = async (pool: string, binId: number) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/price?pool=${pool}&binId=${binId}`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+};
+
 export const getBalances = async (mint: string) => {
   const config = {
     method: "get",
