@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { Box, Button, Typography, TextField, Radio, RadioGroup, FormControlLabel } from '@mui/material';
+import { TooltipProps } from 'recharts';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Formik, Form, Field } from 'formik';
 import { styled } from '@mui/system';
@@ -54,10 +55,10 @@ const DescriptionText = styled(Box)(({ theme }) => ({
   lineHeight: 1.5,
 }));
 
-const ChartContainer = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(2),
-  marginBottom: theme.spacing(2),
-}));
+// const ChartContainer = styled(Box)(({ theme }) => ({
+//   marginTop: theme.spacing(2),
+//   marginBottom: theme.spacing(2),
+// }));
 
 const FormContainer = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(2),
@@ -82,6 +83,21 @@ const CustomRadio = styled(Box, { shouldForwardProp: (prop) => prop !== 'checked
     fontSize: '14px',
   },
 }));
+
+const CustomTooltip = (props: TooltipProps<any, any>) => {
+  const { active, payload, label } = props;
+
+  if (active && payload && payload.length) {
+    return (
+      <div style={{ backgroundColor: '#000', border: '1px solid #ccc', padding: '10px', borderRadius: '4px' }}>
+        <p className="label">{`Price: ${label}`}</p>
+        <p className="intro">{`Value: ${payload[0].value}`}</p>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 const StyledTextField = styled(TextField)`
   & .MuiOutlinedInput-root {
@@ -127,8 +143,10 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   const [yBalance, setYBalance] = useState(0);
   const [xAmount, setXAmount] = useState(0);
   const [yAmount, setYAmount] = useState(0);
+  const [xDecimal, setXDecimal] = useState(0);
+  const [yDecimal, setYDecimal] = useState(0);
   const [selectedStrategy, setSelectedStrategy] = useState('SPOT');
-  const [selectedToken, setSelectedToken] = useState('SOL');
+  // const [selectedToken, setSelectedToken] = useState('SOL');
   const { jwtToken } = useContext(JwtTokenContext);
 
   const [minBinId, setMinBinId] = useState(0);
@@ -178,6 +196,16 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
       if (!mtPair)
         return;
+
+      const xDecimals = await getDecimals(mtPair.mint_x);
+      const yDecimals = await getDecimals(mtPair.mint_y);
+      if (!xDecimals.success || !yDecimals.success) {
+        toast.error("Get Decimals Error!");
+        return;
+      }
+
+      setXDecimal(xDecimals.decimals)
+      setYDecimal(yDecimals.decimals)
 
       if (mtPair.name.split("-").length === 2) {
         let mintXUri;
@@ -232,26 +260,32 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
   };
 
   const handleMinIdChanged = async (e: any) => {
-    setMinPrice(Number(e.target.value));
     if (!mtPair)
       return;
 
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+    setMinPrice(Number(e.target.value));
 
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
     if (binId.success === false)
+      return;
+
+    if ( maxBinId - binId.response.binId > 69 || maxBinId - binId.response.binId <= 0 )
       return;
 
     setMinBinId(binId.response.binId);
   }
 
   const handleMaxIdChanged = async (e: any) => {
-    setMaxPrice(Number(e.target.value));
     if (!mtPair)
       return;
 
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+    setMaxPrice(Number(e.target.value));
 
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
     if (binId.success === false)
+      return;
+
+    if ( binId.response.binId - minBinId > 69 || binId.response.binId - minBinId <= 0 )
       return;
 
     setMaxBinId(binId.response.binId);
@@ -263,15 +297,8 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
       return;
     }
 
-    const xDecimals = await getDecimals(mtPair.mint_x);
-    const yDecimals = await getDecimals(mtPair.mint_y);
-
-    if (!xDecimals.success || !yDecimals.success) {
-      toast.error("Get Decimals Error!");
-      return;
-    }
-    const xAmountLamport = xAmount * (10 ** xDecimals.decimals);
-    const yAmountLamport = yAmount * (10 ** yDecimals.decimals);
+    const xAmountLamport = xAmount * (10 ** xDecimal);
+    const yAmountLamport = yAmount * (10 ** yDecimal);
 
     setLoading(true);
     if (position === undefined) {
@@ -297,18 +324,25 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
   let data;
   let charData = [];
-  for (let i = minBinId; i <= maxBinId; i++) {
+  
+  let gap = 0;
+  if ( maxBinId - minBinId < 69 )
+    gap = Math.floor((69 - (maxBinId - minBinId)) / 2);
+
+  for (let i = minBinId - gap; i <= maxBinId + (69 - (maxBinId - minBinId) - gap); i++) {
     const bin = binArrays.find(e => e.binId === i);
 
-    if (!bin)
-      continue;
+    let binXAmount = bin ? parseInt(bin.xAmount.toString(), 16) : 0;
+    let binYAmount = bin ? parseInt(bin.yAmount.toString(), 16) : 0;
 
-    const binXAmount = parseInt(bin.xAmount.toString(), 16);
-    const binYAmount = parseInt(bin.yAmount.toString(), 16);
+    if ( i < minBinId || i > maxBinId ) {
+      binXAmount = 0
+      binYAmount = 0
+    }
 
-    charData[i - minBinId] = {
+    charData[i - (minBinId - gap)] = {
       'name': bin?.pricePerToken,
-      'value': binXAmount === 0 ? binYAmount : binXAmount
+      'value': (binYAmount / (10 ** xDecimal) + binXAmount / (10 ** yDecimal))
     }
   }
 
@@ -406,7 +440,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
         </DescriptionContainer>
 
         <SectionTitle variant="h6">Set Price Range</SectionTitle>
-        <RadioGroup row value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)}>
+        {/* <RadioGroup row value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)}>
           <RadioContainer>
             <FormControlLabel
               value={mtPair ? mtPair.name.split('-')[0] : ''}
@@ -419,19 +453,17 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
               label={mtPair ? mtPair.name.split('-')[1] : ''}
             />
           </RadioContainer>
-        </RadioGroup>
+        </RadioGroup> */}
 
-        <ChartContainer>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={data}>
+            {/* <CartesianGrid strokeDasharray="3 3" /> */}
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="value" fill="#8884d8" />
+          </BarChart>
+        </ResponsiveContainer>
 
         <Typography variant="body1" align="center">
           You don&#39;t have liquidity in this position
@@ -453,6 +485,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
                     fullWidth
                     style={{ color: '#ffffff' }}
                     value={minPrice}
+                    disabled={position === undefined ? false : true}
                     onChange={handleMinIdChanged}
                   />
                   <Field as={StyledTextField}
@@ -462,9 +495,17 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
                     fullWidth
                     style={{ color: '#ffffff' }}
                     value={maxPrice}
+                    disabled={position === undefined ? false : true}
                     onChange={handleMaxIdChanged}
                   />
-                  <Field as={StyledTextField} name="numBins" label="Num Bins" variant="outlined" fullWidth value={maxBinId - minBinId + 1} />
+                  <Field as={StyledTextField}
+                    name="numBins"
+                    label="Num Bins"
+                    variant="outlined"
+                    disabled={position === undefined ? false : true}
+                    fullWidth
+                    value={maxBinId - minBinId + 1}
+                  />
                 </Box>
                 <Box display="flex" justifyContent="center" mt={2}>
                   <Button variant="contained" color="primary" onClick={handleAddLiquidity}>

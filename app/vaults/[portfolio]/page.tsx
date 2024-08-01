@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import VaultCard from "../../components/vaultcard";
@@ -10,7 +10,6 @@ import {
   Transaction,
   TransactionInstruction,
   SystemProgram,
-  sendAndConfirmTransaction
 } from "@solana/web3.js";
 import {
   createTransferInstruction,
@@ -19,15 +18,17 @@ import {
   getAccount,
 } from "@solana/spl-token";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ADMIN_WALLET_ADDRESS, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '../../config';
+import { ADMIN_WALLET_ADDRESS, DEPOSIT_SOLANA, DEPOSIT_USDC, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '../../config';
+import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
+import { userDepositApi } from '@/app/api/api';
+import { connection } from '@/app/utiles';
 
-export const QUICKNODE_RPC = "https://mainnet.helius-rpc.com/?api-key=f1d5fa66-a4cd-4cb6-a0c3-49c3500e7c0f";
-const solConnection = new Connection(QUICKNODE_RPC);
 
 function Portfolio({ params }: { params: { portfolio: string } }) {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number>(0.1);
   const [isDeposit, setIsDeposit] = useState(true);
+  const { jwtToken, userId } = useContext(JwtTokenContext);
   const wallet = useWallet();
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +38,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
   const handleDeposit = async () => {
     const publicKey = wallet.publicKey;
-    if (!publicKey || !wallet.signTransaction) {
+    if (!publicKey || !wallet.signTransaction || !jwtToken || !userId) {
       toast.error("Wallet connect first!");
       return;
     }
@@ -50,7 +51,9 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
     const recipientAddress = new PublicKey(ADMIN_WALLET_ADDRESS);
 
     let transaction;
+    let depositType;
     if (params.portfolio === "solana") {
+      depositType = DEPOSIT_SOLANA;
       try {
         transaction = new Transaction().add(
           SystemProgram.transfer({
@@ -65,18 +68,19 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         return;
       }
     } else {
+      depositType = DEPOSIT_USDC;
       try {
         const transactionInstructions: TransactionInstruction[] = [];
         const associatedTokenFrom = await getAssociatedTokenAddress(
           mintToken,
           publicKey
         );
-        const fromAccount = await getAccount(solConnection, associatedTokenFrom);
+        const fromAccount = await getAccount(connection, associatedTokenFrom);
         const associatedTokenTo = await getAssociatedTokenAddress(
           mintToken,
           recipientAddress
         );
-        if (!(await solConnection.getAccountInfo(associatedTokenTo))) {
+        if (!(await connection.getAccountInfo(associatedTokenTo))) {
           transactionInstructions.push(
             createAssociatedTokenAccountInstruction(
               publicKey,
@@ -103,24 +107,27 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
     }
 
     // Send and confirm the transaction
-    const blockHash = await solConnection.getLatestBlockhash();
+    const blockHash = await connection.getLatestBlockhash();
     transaction.feePayer = publicKey;
     transaction.recentBlockhash = blockHash.blockhash;
     const signed = await wallet.signTransaction(transaction);
-    const signature = await solConnection.sendRawTransaction(
+    const signature = await connection.sendRawTransaction(
       signed.serialize()
     );
 
-    await solConnection.confirmTransaction(
-      {
-        blockhash: blockHash.blockhash,
-        lastValidBlockHeight: blockHash.lastValidBlockHeight,
-        signature: signature,
-      },
-      "finalized"
-    );
+    // await solConnection.confirmTransaction(
+    //   {
+    //     blockhash: blockHash.blockhash,
+    //     lastValidBlockHeight: blockHash.lastValidBlockHeight,
+    //     signature: signature,
+    //   },
+    //   "finalized"
+    // );
 
     const txHash = (await signature).toString();
+
+    const res = await userDepositApi(jwtToken, userId, amount, depositType, txHash);
+
     console.log("Deposit Success!: ", txHash);
     setLoading(false);
   }

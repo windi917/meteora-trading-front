@@ -2,8 +2,8 @@ import { PublicKey, Connection } from '@solana/web3.js';
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import axios, { AxiosResponse } from "axios";
 
-const RPC = "https://mainnet.helius-rpc.com/?api-key=f1d5fa66-a4cd-4cb6-a0c3-49c3500e7c0f";
-const connection = new Connection(RPC, "finalized");
+export const RPC = "https://mainnet.helius-rpc.com/?api-key=f1d5fa66-a4cd-4cb6-a0c3-49c3500e7c0f";
+export const connection = new Connection(RPC, "finalized");
 
 export async function getDecimals(mintAddress: string) {
     try {

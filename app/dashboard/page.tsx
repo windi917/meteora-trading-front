@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { getAllPair } from '../api/api';
 import { JwtTokenContext } from "../Provider/JWTTokenProvider";
-import { getMetadataUri } from "../utiles";
+import { getMetadataUri, RPC } from "../utiles";
 import { PublicKey } from "@solana/web3.js";
 import { SOL_MINT, USDC_MINT } from "../config";
 
@@ -106,6 +106,30 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { userRole } = useContext(JwtTokenContext);
   const router = useRouter();
+
+  useEffect(() => {
+    const loadJupiterScript = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://terminal.jup.ag/main-v3.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Failed to load script'));
+        document.body.appendChild(script);
+      });
+    };
+
+    const initializeJupiter = async () => {
+      await loadJupiterScript();
+      await window.Jupiter.init({
+        displayMode: "widget",
+        endpoint: RPC,
+        containerClassName:
+          "max-h-[90vh] lg:max-h-[600px] w-full lg:w-[600px] overflow-hidden",
+      });
+    };
+
+    initializeJupiter();
+  }, []);
 
   const fetchPairs = async () => {
     const pairs = await getAllPair();

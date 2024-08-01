@@ -163,6 +163,33 @@ export const getBalances = async (mint: string) => {
   }
 };
 
+export const userDepositApi = async(jwtToken: string | null, user: number, amount: number, depositType: number, txHash: string) => {
+  const data = {
+    'user': user,
+    'amount': amount,
+    'depositType': depositType,
+    'txHash': txHash
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/deposit",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
 export const addPosition = async (jwtToken: string | null, pool: string, strategy: string, xAmount: number, yAmount: number, minBinId: number, maxBinId: number) => {
   const data = {
     'pool': pool,

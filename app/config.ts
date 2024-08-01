@@ -14,6 +14,9 @@ export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 export const SOL_DECIMALS = 9;
 export const USDC_DECIMALS = 6;
 
+export const DEPOSIT_SOLANA = 1;
+export const DEPOSIT_USDC = 2;
+
 export interface MTPair {
   address: string,
   name: string,
