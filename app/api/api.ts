@@ -1,11 +1,29 @@
 import axios from "axios";
-import { METEORA_API_URL, BACKEND_API_URL } from "../config";
+import { METEORA_API_URL, BACKEND_API_URL, JUPITER_API_URL } from "../config";
+
+export const getTokenPrice = async(symbol: string) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: JUPITER_API_URL + `/price?ids=${symbol}`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
 
 export const getAllPair = async () => {
     const config = {
       method: "get",
       maxBodyLength: Infinity,
-      url: METEORA_API_URL + "/pair/all",
+      url: METEORA_API_URL + "/pair/all_by_groups?page=0&limit=10000",
       headers: {
         "Content-Type": "application/json"
       }
@@ -60,6 +78,24 @@ export const getActiveBin = async (pool: string) => {
     method: "get",
     maxBodyLength: Infinity,
     url: BACKEND_API_URL + `/meteora/activebin?pool=${pool}`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+};
+
+export const getBinArrays = async (pool: string, minBinId: number, maxBinId: number) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/binArrays?pool=${pool}&minBinId=${minBinId}&maxBinId=${maxBinId}`,
     headers: {
       "Content-Type": "application/json"
     }
@@ -249,6 +285,31 @@ export const swapToken = async (jwtToken: string | null, pool: string, amount: n
     method: "post",
     maxBodyLength: Infinity,
     url: BACKEND_API_URL + "/meteora/swap",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+};
+
+export const claimFee = async (jwtToken: string | null, pool: string, position: string) => {
+  const data = {
+    'pool': pool,
+    'position': position,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/meteora/claim",
     headers: {
       "Authorization": "Bearer " + jwtToken,
       "Content-Type": "application/json"

@@ -1,9 +1,12 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { MTActiveBin, MTPair, MTPosition } from '@/app/config';
 import { removeLiquidity, closePosition } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
+import { getMetadataUri } from '@/app/utiles';
+import { SOL_MINT, USDC_MINT } from '@/app/config';
+import { PublicKey } from '@solana/web3.js';
 
 interface WithdrawProps {
   position: MTPosition | undefined;
@@ -18,10 +21,39 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
   const [bps, setBps] = useState(100);
   const [xReceive, setXReceive] = useState(position ? position.totalXAmount : 0);
   const [yReceive, setYReceive] = useState(position ? position.totalYAmount : 0);
+  const [xUrl, setXUrl] = useState('');
+  const [yUrl, setYUrl] = useState('');
   const { jwtToken } = useContext(JwtTokenContext);
 
+  useEffect(() => {
+    const fetchMetadataUris = async () => {
+      if ( !mtPair )
+        return;
+
+      if (mtPair.name.split("-").length === 2) {
+        let mintXUri;
+        if ( mtPair.mint_x === SOL_MINT )
+          mintXUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
+        else if ( mtPair.mint_x === USDC_MINT )
+          mintXUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
+        else mintXUri = await getMetadataUri(new PublicKey(mtPair.mint_x));
+
+        let mintYUri;
+        if ( mtPair.mint_y === SOL_MINT )
+          mintYUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
+        else if ( mtPair.mint_y === USDC_MINT )
+          mintYUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
+        else mintYUri = await getMetadataUri(new PublicKey(mtPair.mint_y));
+
+        setXUrl(mintXUri);
+        setYUrl(mintYUri);
+      }
+    };
+
+    fetchMetadataUris();
+  }, []);
+
   const handleWithdraw = async () => {
-    console.log("@@@@@@@@@@@@", position)
     if (!mtPair || !position) {
       toast.error("Pool or Position invalid!");
       return;
@@ -30,8 +62,11 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
     setLoading(true);
 
     let res;
-    if ( position.totalXAmount === 0 && position.totalYAmount === 0 )
-      res = await closePosition(jwtToken, mtPair.address, position.address);
+    if ( position.totalXAmount === 0 && position.totalYAmount === 0 ) {
+      toast.error("Nothing to withdraw in this position!");
+      setLoading(false);
+      return;
+    }
     else res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false);
 
     if (res.success === false)
@@ -52,8 +87,7 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
     setLoading(true);
 
     let res;
-    console.log("####", position.totalXAmount, position.totalYAmount)
-    if ( position.totalXAmount === 0 && position.totalYAmount === 0 )
+    if ( position.totalXAmount === 0 && position.totalYAmount === 0 && position.feeX === 0 && position.feeY === 0 )
       res = await closePosition(jwtToken, mtPair.address, position.address);
     else res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true);
     if (res.success === false)
@@ -93,14 +127,14 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
         <div className="p-4 border border-gray-300 rounded-lg mb-4 gap-2">
           <div className="flex items-center justify-between">
             <span className="flex items-center">
-              <img src="https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256" alt="SOL" className="w-5 h-5 mr-2" />
-              {Number(Number(xReceive).toFixed(6))} SOL
+              <img src={xUrl} alt="mintx" className="w-5 h-5 mr-2" />
+              {Number(Number(xReceive).toFixed(6))} {mtPair ? mtPair.name.split('-')[0] : ''}
             </span>
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="flex items-center">
-              <img src="https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256" alt="USDC" className="w-5 h-5 mr-2" />
-              {Number(Number(yReceive).toFixed(6))} USDC
+              <img src={yUrl} alt="minty" className="w-5 h-5 mr-2" />
+              {Number(Number(yReceive).toFixed(6))} {mtPair ? mtPair.name.split('-')[1] : ''}
             </span>
           </div>
         </div>

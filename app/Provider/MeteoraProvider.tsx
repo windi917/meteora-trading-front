@@ -4,7 +4,8 @@ import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "react-toastify";
 import { getPair, getPositions, getActiveBin } from '../api/api'
 import { BN } from "@coral-xyz/anchor";
-import { MTActiveBin, MTPair, MTPosition } from "../config";
+import { MTActiveBin, MTPair, MTPosition, SOL_MINT } from "../config";
+import { getDecimals } from "../utiles";
 
 interface MeteoraContextProps {
   mtPair: MTPair | undefined;
@@ -49,8 +50,15 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       return;
     }
 
-    const decimalX = pair.response.mint_x === "So11111111111111111111111111111111111111112" ? 9 : 6;
-    const decimalY = pair.response.mint_y === "So11111111111111111111111111111111111111112" ? 9 : 6;
+    const xRes = await getDecimals(pair.response.mint_x);
+    const yRes = await getDecimals(pair.response.mint_y);
+    if (!xRes.success || !yRes.success) {
+      toast.error("Get Decimals Error!");
+      return;
+    }
+
+    const decimalX = xRes.decimals;
+    const decimalY = yRes.decimals;
 
     const pos: MTPosition[] = posRes.response.userPositions.map((e: any) => ({
       'address': e.publicKey,
@@ -69,7 +77,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       'view': 'add',
     }));
 
-    console.log("#############", pos)
     setPositions(pos)
   }
 

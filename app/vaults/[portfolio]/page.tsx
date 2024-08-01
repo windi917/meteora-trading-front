@@ -19,7 +19,7 @@ import {
   getAccount,
 } from "@solana/spl-token";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ADMIN_WALLET_ADDRESS } from '../../config';
+import { ADMIN_WALLET_ADDRESS, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '../../config';
 
 export const QUICKNODE_RPC = "https://mainnet.helius-rpc.com/?api-key=f1d5fa66-a4cd-4cb6-a0c3-49c3500e7c0f";
 const solConnection = new Connection(QUICKNODE_RPC);
@@ -43,8 +43,8 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
     }
 
     setLoading(true);
-    const tokenMintAddress = params.portfolio === "solana" ? "So11111111111111111111111111111111111111112" : "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-    const decimals = params.portfolio === "solana" ? 9 : 6;
+    const tokenMintAddress = params.portfolio === "solana" ? SOL_MINT : USDC_MINT;
+    const decimals = params.portfolio === "solana" ? SOL_DECIMALS : USDC_DECIMALS;
 
     const mintToken = new PublicKey(tokenMintAddress);
     const recipientAddress = new PublicKey(ADMIN_WALLET_ADDRESS);
@@ -91,7 +91,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
             fromAccount.address, // source
             associatedTokenTo, // dest
             publicKey,
-            amount * (10 ** decimals) // transfer 1 USDC, USDC on solana devnet has 6 decimal
+            amount * (10 ** decimals)
           )
         );
         transaction = new Transaction().add(...transactionInstructions);

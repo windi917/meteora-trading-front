@@ -3,8 +3,16 @@ import { BN } from "@coral-xyz/anchor";
 
 export const BACKEND_API_URL = 'https://b.dayprotocol.ai';
 export const METEORA_API_URL = 'https://dlmm-api.meteora.ag'
+export const JUPITER_API_URL = 'https://price.jup.ag/v6'
+
 export const NETWORK = 'devnet'
 export const ADMIN_WALLET_ADDRESS = new PublicKey('3BWcH5wSKXkydJg3giuLesrqkSSgw4jDo16wEWnhoS65');
+
+export const SOL_MINT = 'So11111111111111111111111111111111111111112';
+export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+export const SOL_DECIMALS = 9;
+export const USDC_DECIMALS = 6;
 
 export interface MTPair {
   address: string,

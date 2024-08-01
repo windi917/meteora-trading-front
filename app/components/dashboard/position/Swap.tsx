@@ -3,9 +3,11 @@ import Image from 'next/image';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { BN } from '@coral-xyz/anchor';
-import { MTPair, MTActiveBin } from '@/app/config';
+import { MTPair, MTActiveBin, SOL_MINT, USDC_MINT } from '@/app/config';
 import { getBalances, getActiveBin, swapToken } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
+import { PublicKey } from '@solana/web3.js';
+import { getDecimals, getMetadataUri } from '@/app/utiles';
 
 interface SwapProps {
   mtPair: MTPair | undefined;
@@ -21,12 +23,12 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
   const [xAmount, setXAmount] = useState(0);
   const [yAmount, setYAmount] = useState(0);
   const [swapXtoY, setSwapXtoY] = useState(true);
-  const { jwtToken, userId, userRole } = useContext(JwtTokenContext);
-
-  console.log("##########", userId, userRole);
+  const { jwtToken } = useContext(JwtTokenContext);
+  const [xUrl, setXUrl] = useState('');
+  const [yUrl, setYUrl] = useState('');
 
   const fetchActiveBin = async () => {
-    if ( !mtPair ) {
+    if (!mtPair) {
       toast.error("Pool Error!");
       return;
     }
@@ -74,19 +76,49 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
     const fetchData = async () => {
       await fetchActiveBin();
       await fetchBalance();
+
+      if (!mtPair)
+        return;
+
+      if (mtPair.name.split("-").length === 2) {
+        let mintXUri;
+        if (mtPair.mint_x === SOL_MINT)
+          mintXUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
+        else if (mtPair.mint_x === USDC_MINT)
+          mintXUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
+        else mintXUri = await getMetadataUri(new PublicKey(mtPair.mint_x));
+
+        let mintYUri;
+        if (mtPair.mint_y === SOL_MINT)
+          mintYUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
+        else if (mtPair.mint_y === USDC_MINT)
+          mintYUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
+        else mintYUri = await getMetadataUri(new PublicKey(mtPair.mint_y));
+
+        setXUrl(mintXUri);
+        setYUrl(mintYUri);
+      }
     };
 
     fetchData(); // Call the async function
   }, [refresh, setRefresh])
 
-  const handleSwap = async() => {
-    if ( !mtPair ) {
+  const handleSwap = async () => {
+    if (!mtPair) {
       toast.error("Pool Error!");
       return;
     }
 
-    const xAmountLamport = mtPair.mint_x === "So11111111111111111111111111111111111111112" ? xAmount * (10 ** 9) : xAmount * (10 ** 6);
-    const yAmountLamport = mtPair.mint_y === "So11111111111111111111111111111111111111112" ? yAmount * (10 ** 9) : yAmount * (10 ** 6);
+    const xDecimals = await getDecimals(mtPair.mint_x);
+    const yDecimals = await getDecimals(mtPair.mint_y);
+
+    if ( !xDecimals.success || !yDecimals.success ) {
+      toast.error("Get Decimals Error!");
+      return;
+    }
+    const xAmountLamport = xAmount * (10 ** xDecimals.decimals);
+    const yAmountLamport = yAmount * (10 ** yDecimals.decimals);
+
 
     const swapAmunt = swapXtoY ? xAmountLamport : yAmountLamport;
     setLoading(true);
@@ -101,12 +133,12 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
           <div className="swap-input">
             <div className="position-deposit flex pb-2">
               <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src="https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">SOL</p>
+                <Image src={xUrl} alt="X Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
               </div>
               <input
                 type="number"
-                id="sol"
+                id="mintx"
                 value={xAmount}
                 onChange={(e) => { setXAmount(parseFloat(e.target.value)); setYAmount(parseFloat(e.target.value) * (activeBin ? activeBin.pricePerToken : 0)) }}
               />
@@ -125,12 +157,12 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
           <div className="swap-input mt-10">
             <div className="position-deposit flex pb-2">
               <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src="https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">USDC</p>
+                <Image src={yUrl} alt="Y Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
               </div>
               <input
                 type="number"
-                id="usdc"
+                id="minty"
                 value={yAmount}
                 disabled
                 onChange={(e) => setYAmount(parseFloat(e.target.value))}
@@ -150,12 +182,12 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
           <div className="swap-input">
             <div className="position-deposit flex pb-2">
               <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src="https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">USDC</p>
+                <Image src={yUrl} alt="Y Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
               </div>
               <input
                 type="number"
-                id="usdc"
+                id="minty"
                 value={yAmount}
                 onChange={(e) => { setYAmount(parseFloat(e.target.value)); setXAmount(parseFloat(e.target.value) / (activeBin ? activeBin.pricePerToken : 0)) }}
               />
@@ -174,12 +206,12 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
           <div className="swap-input mt-10">
             <div className="position-deposit flex pb-2">
               <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src="https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256" alt="SOL Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">SOL</p>
+                <Image src={xUrl} alt="X Logo" width={40} height={40} />
+                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
               </div>
               <input
                 type="number"
-                id="sol"
+                id="mintx"
                 value={xAmount}
                 disabled
                 onChange={(e) => setXAmount(parseFloat(e.target.value))}

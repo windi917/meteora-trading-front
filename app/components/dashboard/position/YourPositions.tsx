@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Button } from "@mui/material";
 import Balances from "../header/Balances";
 import UnclaimedFees from "../header/UnclaimedFees";
@@ -6,6 +6,10 @@ import ToggleButton from "../../ToggleButton";
 import AddPosition from "./AddPosition";
 import Withdraw from '../WithdrawComponent';
 import { MTActiveBin, MTPosition, MTPair } from '@/app/config';
+import { claimFee, getTokenPrice } from '@/app/api/api';
+import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
+import { Oval } from "react-loader-spinner";
+import { toast } from 'react-toastify';
 
 interface PositionProps {
   positions: MTPosition[] | undefined;
@@ -15,18 +19,55 @@ interface PositionProps {
   setRefresh: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-function getLiquidity(position: MTPosition, activeBin: MTActiveBin) {
-  let poolPrice: number = activeBin.pricePerToken;
-  let xBalance: number = position.totalXAmount;
-  let yBalance: number = position.totalYAmount;
-  let totalLiquidity: number = Number(xBalance) * poolPrice + Number(yBalance);
-
-  return `${totalLiquidity.toFixed(2)}`
+interface Liquidity {
+  address: string;
+  liquidity: number;
 }
 
 function YourPositions({ positions, activeBin, mtPair, refresh, setRefresh }: PositionProps) {
   // Initialize state
+  const { jwtToken } = useContext(JwtTokenContext);
   const [liquidities, setLiquidities] = useState(positions);
+  const [loading, setLoading] = useState(false);
+  const [_xPrice, setXPrice] = useState(0);
+  const [_yPrice, setYPrice] = useState(0);
+  const [positionLiquidities, setPositionLiquidities] = useState<Liquidity[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!mtPair)
+        return;
+
+      const symbols = mtPair.name.split('-');
+      if (symbols.length === 2) {
+        const xSymbol = symbols[0];
+        const ySymbol = symbols[1];
+
+        const xRes = await getTokenPrice(xSymbol);
+        const yRes = await getTokenPrice(ySymbol);
+
+        if (!xRes.success || !yRes.success) {
+          toast.error("Get Token Price error!");
+          return;
+        }
+
+        setXPrice(xRes.response.data[xSymbol].price);
+        setYPrice(yRes.response.data[ySymbol].price);
+
+        if (!positions)
+          return;
+
+        const data = positions.map((e) => ({
+          'address': e.address,
+          'liquidity': e.totalXAmount * xRes.response.data[xSymbol].price + e.totalYAmount * yRes.response.data[ySymbol].price
+        }))
+
+        setPositionLiquidities(data);
+      }
+    }
+
+    fetchData();
+  }, []);
 
   const handleClick = (address: string) => {
     const updatedLiquidities = liquidities?.map(one => {
@@ -41,6 +82,23 @@ function YourPositions({ positions, activeBin, mtPair, refresh, setRefresh }: Po
 
     setLiquidities(updatedLiquidities);
   };
+
+  const handleClaimFee = async (address: string) => {
+    if (!mtPair)
+      return;
+
+    setLoading(true);
+    const res = await claimFee(jwtToken, mtPair.address, address);
+    if (!res.success) {
+      setLoading(false);
+      toast.error("Claim Fee fail!");
+      return;
+    }
+
+    setLoading(false);
+    toast.success("Claim Fee success!");
+    setRefresh(!refresh);
+  }
 
   const handleToggle = (address: string, view: 'add' | 'withdraw') => {
     const updatedLiquidities = liquidities?.map(one => {
@@ -78,7 +136,7 @@ function YourPositions({ positions, activeBin, mtPair, refresh, setRefresh }: Po
                 ) : 0 - 0}
               </p>
               <p className="w-1/5 text-center">0.44%</p>
-              <p className="w-1/5 text-right">{activeBin ? getLiquidity(e, activeBin) : '$0'}</p>
+              <p className="w-1/5 text-right">${positionLiquidities.find((item) => item.address === e.address)?.liquidity.toFixed(2)}</p>
               {e.visible ? (
                 <img src="/collapse.png" className="w-5 h-5 ml-6" alt="Collapse" />
               ) : (
@@ -91,11 +149,13 @@ function YourPositions({ positions, activeBin, mtPair, refresh, setRefresh }: Po
               <div className="position-card-body p-8">
                 <div className="flex justify-between">
                   <p className="font-l">Position Liquidity</p>
-                  {/* <Button variant="contained" color="primary">Claim Fees</Button> */}
+                  {e.feeX <= 0 && e.feeY <= 0 ? null : (
+                    <Button variant="contained" color="primary" onClick={() => handleClaimFee(e.address)}>Claim Fees</Button>
+                  )}
                 </div>
                 <div className="flex justify-between">
-                  <Balances solBalance={Number(Number(e.totalXAmount).toFixed(6))} usdcBalance={Number(Number(e.totalYAmount).toFixed(6))} />
-                  <UnclaimedFees solFee={Number(Number(e.feeX).toFixed(6))} usdcFee={Number(Number(e.totalXAmount).toFixed(6))} />
+                  <Balances mtPair={mtPair} xBalance={Number(Number(e.totalXAmount).toFixed(6))} yBalance={Number(Number(e.totalYAmount).toFixed(6))} />
+                  <UnclaimedFees mtPair={mtPair} xFee={Number(Number(e.feeX).toFixed(6))} yFee={Number(Number(e.feeY).toFixed(6))} />
                 </div>
               </div>
               <ToggleButton
@@ -111,6 +171,32 @@ function YourPositions({ positions, activeBin, mtPair, refresh, setRefresh }: Po
           )}
         </div>
       ))}
+      {loading && (
+        <>
+          <div style={{
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: "1000"
+          }}>
+            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+              <Oval
+                height="80"
+                visible={true}
+                width="80"
+                color="#CCF869"
+                ariaLabel="oval-loading"
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

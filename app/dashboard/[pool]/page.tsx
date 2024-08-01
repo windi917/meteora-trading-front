@@ -7,11 +7,18 @@ import UnclaimedFees from '../../components/dashboard/header/UnclaimedFees';
 import Position from '../../components/dashboard/position/Position';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
-import { getPair, getPositions, getActiveBin } from '../../api/api'
-import { MTPair, MTPosition, MTActiveBin } from '../../config'
+import { getPair, getPositions, getActiveBin, getTokenPrice } from '../../api/api'
+import { MTPair, MTPosition, MTActiveBin, SOL_MINT } from '../../config'
 import { BN } from "@coral-xyz/anchor";
 import { useRouter } from "next/navigation";
 import { JwtTokenContext } from "@/app/Provider/JWTTokenProvider";
+import { getDecimals } from "@/app/utiles";
+
+interface Liquidity {
+  address: string;
+  liquidity: number;
+  feeEarned: number;
+}
 
 export default function PoolDetail({ params }: { params: { pool: string } }) {
   const [loading, setLoading] = useState<boolean>(false);
@@ -20,6 +27,9 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
   const [positions, setPositions] = useState<MTPosition[]>();
   const [refresh, setRefresh] = useState<boolean>(false);
   const { userRole } = useContext(JwtTokenContext);
+  const [_xPrice, setXPrice] = useState(0);
+  const [_yPrice, setYPrice] = useState(0);
+  const [positionLiquidities, setPositionLiquidities] = useState<Liquidity[]>([]);
   const router = useRouter();
 
   const fetchPair_Positions = async () => {
@@ -31,14 +41,22 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
 
     setMTPair(pair.response);
 
+    // positions
     const posRes = await getPositions(params.pool);
     if (posRes.success === false) {
       toast.error("Get Positions failed!");
       return;
     }
 
-    const decimalX = pair.response.mint_x === "So11111111111111111111111111111111111111112" ? 9 : 6;
-    const decimalY = pair.response.mint_y === "So11111111111111111111111111111111111111112" ? 9 : 6;
+    const xRes = await getDecimals(pair.response.mint_x);
+    const yRes = await getDecimals(pair.response.mint_y);
+    if (!xRes.success || !yRes.success) {
+      toast.error("Get Decimals Error!");
+      return;
+    }
+
+    const decimalX = xRes.decimals;
+    const decimalY = yRes.decimals;
 
     const pos: MTPosition[] = posRes.response.userPositions.map((e: any) => ({
       'address': e.publicKey,
@@ -58,6 +76,33 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
     }));
 
     setPositions(pos)
+
+    // price
+    const symbols = pair.response.name.split('-');
+    if (symbols.length === 2) {
+      const xSymbol = symbols[0];
+      const ySymbol = symbols[1];
+
+      const xRes = await getTokenPrice(xSymbol);
+      const yRes = await getTokenPrice(ySymbol);
+
+      if (!xRes.success || !yRes.success) {
+        toast.error("Get Token Price error!");
+        return;
+      }
+
+      console.log("--------", xRes, yRes);
+      setXPrice(xRes.response.data[xSymbol].price);
+      setYPrice(yRes.response.data[ySymbol].price);
+
+      const data = pos.map((e) => ({
+        'address': e.address,
+        'liquidity': e.totalXAmount * xRes.response.data[xSymbol].price + e.totalYAmount * yRes.response.data[ySymbol].price,
+        'feeEarned': e.totalClaimedFeeXAmount * xRes.response.data[xSymbol].price + e.totalClaimedFeeYAmount * yRes.response.data[ySymbol].price
+      }))
+
+      setPositionLiquidities(data);
+    }
   }
 
   const fetchActiveBin = async () => {
@@ -89,30 +134,22 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
       setLoading(false);
     };
 
-    if ( userRole === "ADMIN" )
+    if (userRole === "ADMIN")
       fetchData(); // Call the async function
     else
       router.push("/");
   }, [refresh, setRefresh])
 
   let poolPrice: number = mtPair ? mtPair.current_price : 0;
-  let solBalance: number = positions ? positions.length ? positions.map(e => e.totalXAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let usdcBalance: number = positions ? positions.length ? positions.map(e => e.totalYAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let totalLiquidity: number = Number(solBalance) * poolPrice + Number(usdcBalance);
-  let solFee: number = positions ? positions.length ? positions.map(e => e.feeX).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let usdcFee: number = positions ? positions.length ? positions.map(e => e.feeY).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let totalClaimedFeeXAmount: number = positions ? positions.length ? positions.map(e => e.totalClaimedFeeXAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let totalClaimedFeeYAmount: number = positions ? positions.length ? positions.map(e => e.totalClaimedFeeYAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-  let feesEarned: number = totalClaimedFeeXAmount + totalClaimedFeeYAmount;
+  let xBalance: number = positions ? positions.length ? positions.map(e => e.totalXAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  let yBalance: number = positions ? positions.length ? positions.map(e => e.totalYAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  let totalLiquidity: number = positionLiquidities ? positionLiquidities.length ? positionLiquidities.map(e => e.liquidity).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  let xFee: number = positions ? positions.length ? positions.map(e => e.feeX).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  let yFee: number = positions ? positions.length ? positions.map(e => e.feeY).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  let feesEarned: number = positionLiquidities ? positionLiquidities.length ? positionLiquidities.map(e => e.feeEarned).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
 
   return (
     <div className="App">
-      <LiquidityInfo poolPrice={Number(poolPrice.toFixed(2))} totalLiquidity={Number(totalLiquidity.toFixed(6))} feesEarned={Number(feesEarned.toFixed(6))} />
-      <div className="flex justify-between">
-        <Balances solBalance={Number(solBalance.toFixed(6))} usdcBalance={Number(usdcBalance.toFixed(6))} />
-        <UnclaimedFees solFee={Number(solFee.toFixed(6))} usdcFee={Number(usdcFee.toFixed(6))} />
-      </div>
-
       {loading ? (
         <>
           <div style={{
@@ -139,7 +176,14 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
           </div>
         </>
       ) : (
-        <Position positions={positions} activeBin={activeBin} mtPair={mtPair} refresh={refresh} setRefresh={setRefresh} />
+        <>
+          <LiquidityInfo mtPair={mtPair} poolPrice={Number(poolPrice.toFixed(2))} totalLiquidity={Number(totalLiquidity.toFixed(6))} feesEarned={Number(feesEarned.toFixed(6))} />
+          <div className="flex justify-between">
+            <Balances mtPair={mtPair} xBalance={Number(xBalance.toFixed(6))} yBalance={Number(yBalance.toFixed(6))} />
+            <UnclaimedFees mtPair={mtPair} xFee={Number(xFee.toFixed(6))} yFee={Number(yFee.toFixed(6))} />
+          </div>
+          <Position positions={positions} activeBin={activeBin} mtPair={mtPair} refresh={refresh} setRefresh={setRefresh} />
+        </>
       )}
     </div>
   );
