@@ -130,6 +130,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
     const res = await userDepositApi(jwtToken, userId, amount, depositType, txHash);
 
+    toast.success('Deposit success!');
     console.log("Deposit Success!: ", txHash);
     setLoading(false);
   }
