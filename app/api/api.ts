@@ -426,7 +426,7 @@ export const removeLiquidity = async (jwtToken: string | null, pool: string, pos
       "Content-Type": "application/json"
     },
     data: data,
-    timeout: 120000, // Set timeout to 10 seconds (10000 milliseconds)
+    timeout: 300000, // Set timeout to 10 seconds (10000 milliseconds)
   };
 
   try {

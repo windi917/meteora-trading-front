@@ -92,7 +92,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     else {
       const outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
       const outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
-      let outAmount = outXAmount + outYAmount;
+      let outAmount = parseInt(outXAmount) + parseInt(outYAmount);
 
       if ( sol_usdc === 1 )
         outAmount = outAmount / (10 ** 9);
