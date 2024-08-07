@@ -221,7 +221,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
       console.log("#################", poolsWithVolumes);
       poolsWithVolumes.sort((a, b) => a.tradeVolume - b.tradeVolume);
   
-      let withdrawAmount = amount;
+      let withdrawAmount = amount + 0.5;
       //////////////////////////////////
   
       if (params.portfolio === 'solana') {
@@ -342,12 +342,15 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
           userDepositReduceAmount = amount;
         }
   
-        console.log("here1", userDepositReduceAmount);
-        await userDepositReduceApi(jwtToken, userDepositReduceAmount, 2);
-        console.log("here2", amount);
-        await adminWithdrawToUserApi(jwtToken, amount, 2);
+        const res = await adminWithdrawToUserApi(jwtToken, amount, 2);
+        if ( res.success === false ) {
+          toast.error('Withdraw error!');
+          setLoading(false);
+          return;
+        }
   
-        toast.error('Withdraw success!');
+        await userDepositReduceApi(jwtToken, userDepositReduceAmount, 2);
+        toast.success('Withdraw success!');
         setLoading(false);
       }
     } catch (e) {
