@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { MTActiveBin, MTPair, MTPosition } from '@/app/config';
-import { removeLiquidity, closePosition, getPoolDepositRole } from '@/app/api/api';
+import { removeLiquidity, closePosition, getPoolDepositRole, adminPositionWithdrawApi } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { getMetadataUri } from '@/app/utiles';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
@@ -63,6 +63,8 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     setLoading(true);
 
     let res;
+    let sol_usdc = 0;
+
     if (position.totalXAmount === 0 && position.totalYAmount === 0) {
       toast.error("Nothing to withdraw in this position!");
       setLoading(false);
@@ -75,7 +77,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         return;
       }
 
-      let sol_usdc = 0;
       if (positionRole)
         sol_usdc = positionRole.response.sol_usdc;
 
@@ -85,9 +86,24 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false, 'usdc');
     }
 
+    console.log("##############", res)
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
+      const outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
+      const outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
+      let outAmount = outXAmount + outYAmount;
+
+      if ( sol_usdc === 1 )
+        outAmount = outAmount / (10 ** 9);
+      else if ( sol_usdc === 2 )
+        outAmount = outAmount / (10 ** 6);
+
+      console.log("@@@@@@@@@@@@@@@@@@@@@@@@@", outXAmount, outYAmount, outAmount, sol_usdc)
+
+      if ( outAmount > 0 )
+        await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
+
       toast.success("Remove Liquidity Success!");
     }
     setLoading(false);

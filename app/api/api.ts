@@ -270,6 +270,32 @@ export const userDepositReduceApi = async (jwtToken: string | null, amount: numb
   }
 }
 
+export const adminPositionWithdrawApi = async (jwtToken: string | null, pool: string, rate: number, outAmount: number) => {
+  const data = {
+    'pool': pool,
+    'rate': rate,
+    'outAmount': outAmount,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/positionWithdraw",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
 export const adminWithdrawToUserApi = async (jwtToken: string | null, amount: number, withdrawType: number) => {
   const data = {
     'amount': amount,
@@ -400,6 +426,7 @@ export const removeLiquidity = async (jwtToken: string | null, pool: string, pos
       "Content-Type": "application/json"
     },
     data: data,
+    timeout: 120000, // Set timeout to 10 seconds (10000 milliseconds)
   };
 
   try {
