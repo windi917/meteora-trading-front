@@ -1,19 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { PublicKey } from '@solana/web3.js';
 import { MTPair } from '@/app/config';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
-import { getMetadataUri } from '@/app/utiles';
+import { getMetadataUri, toDecimalString } from '@/app/utiles';
+import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
-interface BalancesProps {
-  mtPair: MTPair | undefined,
-  xBalance: number;
-  yBalance: number;
+interface AddPositionProps {
+  positionAddr: string
 }
 
-function Balances({ mtPair, xBalance, yBalance }: BalancesProps) {
+function Balances({ positionAddr }: AddPositionProps) {
   const [xUrl, setXUrl] = useState('');
   const [yUrl, setYUrl] = useState('');
+  const { mtPair, positions } = useContext(MeteoraContext);
+
+  const position = positions?.find(e => e.address === positionAddr)
+  let xBalance, yBalance;
+
+  if (positionAddr === 'TOTAL') {
+    xBalance = positions ? positions.length ? positions.map(e => e.totalXAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+    yBalance = positions ? positions.length ? positions.map(e => e.totalYAmount).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+  } else {
+    xBalance = position ? position.totalXAmount : 0;
+    yBalance = position ? position.totalYAmount : 0;
+  }
 
   useEffect(() => {
     const fetchMetadataUris = async () => {
@@ -41,18 +52,18 @@ function Balances({ mtPair, xBalance, yBalance }: BalancesProps) {
     };
 
     fetchMetadataUris();
-  }, []);
+  }, [mtPair, positions]);
 
   return (
     <div className="balances">
       <p className="pb-6">Current Balance</p>
       <div className="flex pb-2" style={{ alignItems: 'center' }}>
         <Image src={xUrl} alt="X Logo" width={40} height={40} />
-        <h2 className="pl-2">{xBalance} {mtPair ? mtPair.name.split('-')[0] : ''}</h2>
+        <h2 className="pl-2">{toDecimalString(xBalance)} {mtPair ? mtPair.name.split('-')[0] : ''}</h2>
       </div>
       <div className="flex" style={{ alignItems: 'center' }}>
         <Image src={yUrl} alt="Y Logo" width={40} height={40} />
-        <h2 className="pl-2">{yBalance} {mtPair ? mtPair.name.split('-')[1] : ''}</h2>
+        <h2 className="pl-2">{toDecimalString(yBalance)} {mtPair ? mtPair.name.split('-')[1] : ''}</h2>
       </div>
     </div>
   );

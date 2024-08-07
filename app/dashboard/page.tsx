@@ -5,27 +5,11 @@ import Link from 'next/link'; // Import Link from Next.js
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
-import { getAllPair } from '../api/api';
 import { JwtTokenContext } from "../Provider/JWTTokenProvider";
 import { getMetadataUri, RPC } from "../utiles";
 import { PublicKey } from "@solana/web3.js";
-import { SOL_MINT, USDC_MINT } from "../config";
-
-interface Pair {
-  name: string;
-  address: string;
-  mint_x: string;
-  mint_y: string;
-  liquidity: number;
-  trade_volume_24h: number;
-  fees_24h: number;
-}
-
-interface Group {
-  name: string;
-  pairs: Pair[];
-  expanded: boolean;
-}
+import { SOL_MINT, USDC_MINT, Pair, Group } from "../config";
+import { MeteoraContext } from "../Provider/MeteoraProvider";
 
 interface PairItemProps {
   pair: Pair;
@@ -98,13 +82,13 @@ const PairItem: React.FC<PairItemProps> = ({ pair }) => {
 
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [displayedGroups, setDisplayedGroups] = useState<Group[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [pageSize] = useState<number>(5); // Load 5 groups at a time
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { userRole } = useContext(JwtTokenContext);
+  const { allGroups } = useContext(MeteoraContext);
   const router = useRouter();
 
   useEffect(() => {
@@ -131,34 +115,16 @@ const Dashboard: React.FC = () => {
     initializeJupiter();
   }, []);
 
-  const fetchPairs = async () => {
-    const pairs = await getAllPair();
-    if (pairs.success === false) {
-      toast.error("Get LP Pairs failed!");
-      return [];
+  useEffect(() => {
+    if ( allGroups ) {
+      setTotalPages(Math.ceil(allGroups.length / pageSize));
+      setDisplayedGroups(allGroups.slice(0, pageSize));
     }
 
-    return pairs.response.groups;
-  }
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-
-      const newGroups = await fetchPairs();
-      setAllGroups(newGroups);
-      setTotalPages(Math.ceil(newGroups.length / pageSize));
-      setDisplayedGroups(newGroups.slice(0, pageSize));
-
-      setLoading(false);
-    };
-
-    if (userRole === "ADMIN") {
-      fetchData(); // Call the async function
-    } else {
+    if (userRole !== "ADMIN") {
       router.push("/"); // <-- Redirect to another page if not admin
     }
-  }, [userRole, router, pageSize]);
+  }, [userRole, router, pageSize, allGroups]);
 
   useEffect(() => {
     handlePageChange(currentPage); // Ensure data is updated on page change
@@ -171,6 +137,9 @@ const Dashboard: React.FC = () => {
   }
 
   const handlePageChange = (page: number) => {
+    if ( !allGroups )
+      return;
+
     setCurrentPage(page);
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;

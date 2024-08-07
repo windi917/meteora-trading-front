@@ -17,6 +17,22 @@ export const USDC_DECIMALS = 6;
 export const DEPOSIT_SOLANA = 1;
 export const DEPOSIT_USDC = 2;
 
+export interface Pair {
+  name: string;
+  address: string;
+  mint_x: string;
+  mint_y: string;
+  liquidity: number;
+  trade_volume_24h: number;
+  fees_24h: number;
+}
+
+export interface Group {
+  name: string;
+  pairs: Pair[];
+  expanded: boolean;
+}
+
 export interface MTPair {
   address: string,
   name: string,
@@ -80,4 +96,10 @@ export interface MTActiveBin {
   supply: BN,
   xAmount: BN,
   yAmount: BN
+}
+
+export interface Liquidity {
+  address: string;
+  liquidity: number;
+  feeEarned: number;
 }

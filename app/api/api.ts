@@ -1,7 +1,62 @@
 import axios from "axios";
 import { METEORA_API_URL, BACKEND_API_URL, JUPITER_API_URL } from "../config";
 
-export const getTokenPrice = async(symbol: string) => {
+export const getUserPositionApi = async (jwtToken: string | null) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/userPosition`,
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const getUserDepositAmountApi = async () => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/userDepositAmount`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const getPoolDepositRole = async (pool: string) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/poolRole?pool=${pool}`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const getTokenPrice = async (symbol: string) => {
   const config = {
     method: "get",
     maxBodyLength: Infinity,
@@ -20,39 +75,39 @@ export const getTokenPrice = async(symbol: string) => {
 }
 
 export const getAllPair = async () => {
-    const config = {
-      method: "get",
-      maxBodyLength: Infinity,
-      url: METEORA_API_URL + "/pair/all_by_groups?page=0&limit=10000",
-      headers: {
-        "Content-Type": "application/json"
-      }
-    };
-
-    try {
-      const response = await axios.request(config);
-      return { success: true, response: response.data };
-    } catch (error) {
-      return { success: false };
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: METEORA_API_URL + "/pair/all_by_groups?page=0&limit=10000",
+    headers: {
+      "Content-Type": "application/json"
     }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
 };
 
 export const getPair = async (pool: string) => {
-    const config = {
-      method: "get",
-      maxBodyLength: Infinity,
-      url: METEORA_API_URL + `/pair/${pool}`,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    };
-
-    try {
-      const response = await axios.request(config);
-      return { success: true, response: response.data };
-    } catch (error) {
-      return { success: false };
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: METEORA_API_URL + `/pair/${pool}`,
+    headers: {
+      "Content-Type": "application/json"
     }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
 };
 
 export const getPositions = async (pool: string) => {
@@ -163,7 +218,7 @@ export const getBalances = async (mint: string) => {
   }
 };
 
-export const userDepositApi = async(jwtToken: string | null, user: number, amount: number, depositType: number, txHash: string) => {
+export const userDepositApi = async (jwtToken: string | null, user: number, amount: number, depositType: number, txHash: string) => {
   const data = {
     'user': user,
     'amount': amount,
@@ -175,6 +230,82 @@ export const userDepositApi = async(jwtToken: string | null, user: number, amoun
     method: "post",
     maxBodyLength: Infinity,
     url: BACKEND_API_URL + "/user/deposit",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const userDepositReduceApi = async (jwtToken: string | null, amount: number, withdrawType: number) => {
+  const data = {
+    'amount': amount,
+    'withdrawType': withdrawType,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/reduceDeposit",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const adminWithdrawToUserApi = async (jwtToken: string | null, amount: number, withdrawType: number) => {
+  const data = {
+    'amount': amount,
+    'withdrawType': withdrawType,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/withdrawToUser",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export const userWithdrawApi = async (jwtToken: string | null, pool: string, reduceAmount: number, withdrawType: number) => {
+  const data = {
+    'pool': pool,
+    'reduceAmount': reduceAmount,
+    'withdrawType': withdrawType,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/withdraw",
     headers: {
       "Authorization": "Bearer " + jwtToken,
       "Content-Type": "application/json"
@@ -219,7 +350,7 @@ export const addPosition = async (jwtToken: string | null, pool: string, strateg
   }
 };
 
-export const addLiquidity = async (jwtToken: string | null, pool: string, position: string, strategy: string, xAmount: number, yAmount: number, minBinId: number, maxBinId: number) => {
+export const addLiquidity = async (jwtToken: string | null, pool: string, position: string, strategy: string, xAmount: number, yAmount: number, minBinId: number, maxBinId: number, depositToken: string, depositAmount: number) => {
   const data = {
     'pool': pool,
     'position': position,
@@ -227,7 +358,9 @@ export const addLiquidity = async (jwtToken: string | null, pool: string, positi
     'xAmount': xAmount,
     'yAmount': yAmount,
     'minBinId': minBinId,
-    'maxBinId': maxBinId
+    'maxBinId': maxBinId,
+    'depositToken': depositToken,
+    'depositAmount': depositAmount,
   };
 
   const config = {
@@ -249,12 +382,13 @@ export const addLiquidity = async (jwtToken: string | null, pool: string, positi
   }
 };
 
-export const removeLiquidity = async (jwtToken: string | null, pool: string, position: string, bps: number, shouldClaimAndClose: boolean) => {
+export const removeLiquidity = async (jwtToken: string | null, pool: string, position: string, bps: number, shouldClaimAndClose: boolean, swapTo: string) => {
   const data = {
     'pool': pool,
     'position': position,
     'bps': bps,
-    'shouldClaimAndClose': shouldClaimAndClose
+    'shouldClaimAndClose': shouldClaimAndClose,
+    'swapTo': swapTo
   };
 
   const config = {
@@ -337,6 +471,32 @@ export const claimFee = async (jwtToken: string | null, pool: string, position: 
     method: "post",
     maxBodyLength: Infinity,
     url: BACKEND_API_URL + "/meteora/claim",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+};
+
+export const jupiterSwapApi = async (jwtToken: string | null, input: string, output: string, amount: number) => {
+  const data = {
+    'input': input,
+    'output': output,
+    'amount': amount
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/meteora/jupiterswap",
     headers: {
       "Authorization": "Bearer " + jwtToken,
       "Content-Type": "application/json"

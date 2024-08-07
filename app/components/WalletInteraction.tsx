@@ -16,6 +16,11 @@ const WalletInteraction: FC = () => {
 
   const { setJwtToken, setUserRole, setUserId } = useContext(JwtTokenContext);
   const [isRegistered, setIsRegistered] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true); // Ensure this code only runs on the client
+  }, []);
 
   const handleLogin = useCallback(async () => {
     if (!publicKey || !signMessage) {
@@ -59,10 +64,10 @@ const WalletInteraction: FC = () => {
   }, [publicKey, signMessage]);
 
   useEffect(() => {
-    if (publicKey) {
+    if (publicKey && isClient) {
       handleLogin();
     }
-  }, [publicKey, handleLogin]);
+  }, [publicKey, handleLogin, isClient]);
 
   const handleSignup = useCallback(async () => {
     if (!publicKey || !signMessage) {
@@ -103,15 +108,11 @@ const WalletInteraction: FC = () => {
     }
   }, [publicKey, signMessage, handleLogin]);
 
-  // if (!publicKey || !signMessage) {
-  //   return;
-  // }
-  
   return (
     <div>
       <ToastContainer />
       <div className="flex" style={{ alignItems: 'center' }}>
-        <WalletMultiButton />
+        {isClient && <WalletMultiButton />}
         {connected && isRegistered === false ? (
           <button
             className="bg-[#ccf869] border-2 mt-1 border-whitesmoke font-primaryRegular leading-normal py-2 px-6 rounded-3xl text-[0.9em] duration-300 ease-in-out text-black hover:bg-[#bbe759] hover:text-black"

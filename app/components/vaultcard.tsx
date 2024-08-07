@@ -92,7 +92,7 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
     <div className="vault-card" style={{ width: `${width}%` }}>
       <h2 className="font-l">{title}</h2>
       <p className="font-s mb-8">Self-managed, auto-rebalancing defi pools.</p>
-      <div className="flex mb-8">
+      {/* <div className="flex mb-8">
         <div style={{ textAlign: 'left' }}>
           <p className="font-m">${aum.toLocaleString()}</p>
           <p className="font-s">Assets Under Management</p>
@@ -101,7 +101,7 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
           <p className="font-m">{annReturn}%</p>
           <p className="font-s">Ann. Return</p>
         </div>
-      </div>
+      </div> */}
       <div className="time-interval-buttons">
         <button
           className={selectedInterval === '1D' ? 'active' : ''}

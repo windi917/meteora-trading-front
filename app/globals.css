@@ -407,3 +407,26 @@ h2 {
   background-color: #555;
   border-color: #666;
 }
+
+.custom-radio {
+  display: none;
+}
+.custom-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+.custom-radio:checked + .custom-label {
+  border-color: #0070f3;
+  background-color: #2e2c2c;
+}
+.custom-label:hover {
+  background-color: #504040;
+}
+.option-container {
+  margin-right: 20px;
+}

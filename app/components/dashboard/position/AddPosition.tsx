@@ -9,18 +9,17 @@ import { Formik, Form, Field } from 'formik';
 import { styled } from '@mui/system';
 import { BN } from '@coral-xyz/anchor';
 
-import { MTActiveBin, MTPair, MTPosition, SOL_MINT, USDC_MINT } from '@/app/config';
-import { getBinIdByPrice, getPriceByBinId, getBalances, addPosition, addLiquidity, getBinArrays } from '@/app/api/api';
+import { SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '@/app/config';
+import { getBinIdByPrice, getPriceByBinId, getBalances, addPosition, addLiquidity, getBinArrays, getPoolDepositRole, jupiterSwapApi, getUserDepositAmountApi } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { PublicKey } from '@solana/web3.js';
 import { getDecimals, getMetadataUri } from '@/app/utiles';
+import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
+import RangeSlider from '../../Progress';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 interface AddPositionProps {
-  position: MTPosition | undefined;
-  mtPair: MTPair | undefined;
-  activeBin: MTActiveBin | undefined;
-  refresh: boolean;
-  setRefresh: React.Dispatch<React.SetStateAction<boolean>>;
+  positionAddr: string;
 }
 
 interface CustomRadioProps {
@@ -99,28 +98,43 @@ const CustomTooltip = (props: TooltipProps<any, any>) => {
   return null;
 };
 
-const StyledTextField = styled(TextField)`
-  & .MuiOutlinedInput-root {
-    & fieldset {
-      border-color: #ffffff;
-    }
-    &:hover fieldset {
-      border-color: #ffffff;
-    }
-    &.Mui-focused fieldset {
-      border-color: #ffffff;
-    }
-    & input {
-      color: #ffffff;  // Input text color
-    }
-  }
-  & .MuiInputLabel-outlined {
-    color: #ffffff;  // Label text color
-  }
-  & .MuiInputBase-input {
-    color: #ffffff;  // Input text color for focused state
-  }
-`;
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  // Styles for the root element of the outlined input
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      borderColor: '#ffffff',  // Default border color
+    },
+    '&:hover fieldset': {
+      borderColor: '#ffffff',  // Border color on hover
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#ffffff',  // Border color when focused
+    },
+    // Styles for the disabled state
+    '&.Mui-disabled': {
+      '& fieldset': {
+        borderColor: 'gray',  // Border color when disabled
+      },
+      '& .MuiOutlinedInput-input': {
+        color: 'gray !important',  // Text color when disabled
+        opacity: 1,  // Ensure opacity is set to 1 for disabled state
+        WebkitTextFillColor: 'gray',  // For WebKit browsers
+      },
+    },
+  },
+  // Styles for the input label
+  '& .MuiInputLabel-outlined': {
+    color: '#ffffff',  // Label color when enabled
+  },
+  // Styles for the label when the field is disabled
+  '& .MuiInputLabel-outlined.Mui-disabled': {
+    color: 'gray !important',  // Label color when disabled
+  },
+  // Default input text color
+  '& .MuiInputBase-input': {
+    color: '#ffffff',  // Text color when enabled
+  },
+}));
 
 const strategyDescription = [
   "Spot provides a uniform distribution that is versatile and risk-adjusted, suitable for any type of market and conditions. This is similar to setting a CLMM price range.",
@@ -137,12 +151,12 @@ interface BinData {
   yAmount: BN;
 }
 
-function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPositionProps) {
+function AddPosition({ positionAddr }: AddPositionProps) {
+  const { positions, mtPair, activeBin } = useContext(MeteoraContext);
   const [loading, setLoading] = useState(false);
-  const [xBalance, setXBalance] = useState(0);
-  const [yBalance, setYBalance] = useState(0);
-  const [xAmount, setXAmount] = useState(0);
-  const [yAmount, setYAmount] = useState(0);
+  const [solBalance, setSolBalance] = useState(0);
+  const [usdcBalance, setUSDCBalance] = useState(0);
+  const [depositAmount, setDepositAmount] = useState(0);
   const [xDecimal, setXDecimal] = useState(0);
   const [yDecimal, setYDecimal] = useState(0);
   const [selectedStrategy, setSelectedStrategy] = useState('SPOT');
@@ -151,20 +165,38 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
   const [minBinId, setMinBinId] = useState(0);
   const [maxBinId, setMaxBinId] = useState(0);
+  const [fixMinId, setFixMinId] = useState(0);
+  const [fixMaxId, setFixMaxId] = useState(0);
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
   const [xUrl, setXUrl] = useState('');
   const [yUrl, setYUrl] = useState('');
   const [binArrays, setBinArrays] = useState<BinData[]>([])
 
+  const [selectedDepositToken, setSelectedDepositToken] = useState('SOL');
+  const [poolRole, setPoolRole] = useState(0);
+  const [selectedOption, setSelectedOption] = useState('XToken');
+
+  const wallet = useWallet();
+
+  const handleChange = (e: any) => {
+    setSelectedOption(e.target.value);
+  };
+
+  const options = ['XToken', 'YToken'];
+
+  const position = positions?.find((e) => e.address === positionAddr);
+
   let disableDeposit = 'none';
   if (activeBin) {
     if (position !== undefined) {
       if (activeBin.pricePerToken > position.positionBinData[position.positionBinData.length - 1].pricePerToken) {
         disableDeposit = 'base';
+        setSelectedOption(options[0]);
       }
       if (activeBin.pricePerToken < position.positionBinData[0].pricePerToken) {
         disableDeposit = 'quote';
+        setSelectedOption(options[1]);
       }
     }
   }
@@ -173,21 +205,21 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
     if (mtPair === undefined)
       return;
 
-    const resX = await getBalances(mtPair.mint_x);
+    const resX = await getBalances(SOL_MINT);
     if (resX.success === false) {
       toast.error("Get Balances fail!");
       return;
     }
 
-    setXBalance(resX.response.balance);
+    setSolBalance(resX.response.balance);
 
-    const resY = await getBalances(mtPair.mint_y);
+    const resY = await getBalances(USDC_MINT);
     if (resY.success === false) {
       toast.error("Get Balances fail!");
       return;
     }
 
-    setYBalance(resY.response.balance);
+    setUSDCBalance(resY.response.balance);
   }
 
   useEffect(() => {
@@ -196,6 +228,25 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
       if (!mtPair)
         return;
+
+      // Get Pool deposit role
+      const poolRoleRes = await getPoolDepositRole(mtPair.address);
+      if (!poolRoleRes.success) {
+        toast.error("Get Pool Role Error!");
+        return;
+      }
+
+      let sol_usdc = 0;
+      if (poolRoleRes)
+        sol_usdc = poolRoleRes.response.sol_usdc;
+
+      if (sol_usdc === 0 || sol_usdc === 1)
+        setSelectedDepositToken('SOL');
+      else
+        setSelectedDepositToken('USDC');
+
+      setPoolRole(sol_usdc);
+      /////////////////////////////////////
 
       const xDecimals = await getDecimals(mtPair.mint_x);
       const yDecimals = await getDecimals(mtPair.mint_y);
@@ -239,8 +290,10 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
       setMinBinId(minBin);
       setMaxBinId(maxBin);
-      setMinPrice(Number(minP.response.price) * 1000.0);
-      setMaxPrice(Number(maxP.response.price) * 1000.0);
+      setFixMinId(minBin);
+      setFixMaxId(maxBin);
+      setMinPrice(Number(minP.response.price));
+      setMaxPrice(Number(maxP.response.price));
 
       // fetch bin arrays
       const res = await getBinArrays(mtPair.address, minBin, maxBin);
@@ -253,7 +306,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
     };
 
     fetchData(); // Call the async function
-  }, [refresh, setRefresh])
+  }, [])
 
   const handleStrategyChange = (value: string) => {
     setSelectedStrategy(value);
@@ -265,11 +318,11 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
     setMinPrice(Number(e.target.value));
 
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value));
     if (binId.success === false)
       return;
 
-    if ( maxBinId - binId.response.binId > 69 || maxBinId - binId.response.binId <= 0 )
+    if (maxBinId - binId.response.binId > 69 || maxBinId - binId.response.binId <= 0)
       return;
 
     setMinBinId(binId.response.binId);
@@ -281,72 +334,117 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
 
     setMaxPrice(Number(e.target.value));
 
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value) / 1000.0);
+    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value));
     if (binId.success === false)
       return;
 
-    if ( binId.response.binId - minBinId > 69 || binId.response.binId - minBinId <= 0 )
+    if (binId.response.binId - minBinId > 69 || binId.response.binId - minBinId <= 0)
       return;
 
     setMaxBinId(binId.response.binId);
   }
 
   const handleAddLiquidity = async () => {
-    if (!mtPair || !activeBin) {
+    if (!mtPair || !activeBin || !wallet.publicKey) {
       toast.error("Pool or ActiveBin invalid!");
       return;
     }
 
-    const xAmountLamport = xAmount * (10 ** xDecimal);
-    const yAmountLamport = yAmount * (10 ** yDecimal);
+    console.log("DEPOSIT: ", depositAmount, selectedDepositToken);
+    console.log("SWAP TO: ", selectedOption)
+
+    if (position && depositAmount <= 0) {
+      toast.error("Input deposit amount correctly!");
+      return;
+    }
+    if ((selectedDepositToken === 'SOL' && depositAmount > solBalance) ||
+      (selectedDepositToken === 'USDC' && depositAmount > usdcBalance)) {
+      toast.error("Funds not enough!");
+      return;
+    }
 
     setLoading(true);
+
     if (position === undefined) {
-      const res = await addPosition(jwtToken, mtPair.address, selectedStrategy, xAmountLamport, yAmountLamport, minBinId, maxBinId);
+      const res = await addPosition(jwtToken, mtPair.address, selectedStrategy, 0, 0, minBinId, maxBinId);
       if (res.success === false)
         toast.error("Add Position Fail!");
       else {
+        fetchBalance();
         toast.success("Add Position Success!");
-        setRefresh(!refresh);
       }
     }
     else {
-      const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId);
+      const userDepositRes = await getUserDepositAmountApi();
+      console.log("User Deposits: ", userDepositRes);
+      if (!userDepositRes.success) {
+        setLoading(false);
+        toast.error("Get user deposit error!");
+        return;
+      }
+
+      if ((selectedDepositToken === "SOL" && userDepositRes.response.sol < depositAmount) ||
+        (selectedDepositToken === "USDC" && userDepositRes.response.usdc < depositAmount)) {
+        setLoading(false);
+        toast.error("Deposit Amount not enough!");
+        return;
+      }
+
+      const swapRes = await jupiterSwapApi(
+        jwtToken,
+        selectedDepositToken === 'SOL' ? SOL_MINT : USDC_MINT,
+        selectedOption === 'XToken' ? mtPair.mint_x : mtPair.mint_y,
+        selectedDepositToken === 'SOL' ? depositAmount * (10 ** SOL_DECIMALS) : depositAmount * (10 ** USDC_DECIMALS)
+      )
+
+      if (!swapRes.success) {
+        toast.error("Jupiter swap error!");
+        setLoading(false);
+        return;
+      }
+
+      let xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount : 0;
+      let yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount : 0;
+
+      const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId, selectedDepositToken, depositAmount);
       if (res.success === false)
         toast.error("Add Liquidity Fail!");
       else {
+        fetchBalance();
         toast.success("Add Liquidity Success!");
-        setRefresh(!refresh);
       }
     }
     setLoading(false);
   }
 
-  let data;
-  let charData = [];
-  
+  const handleDepositTokenChange = (e: any) => {
+    setSelectedDepositToken(e.target.value);
+  };
+
+  let chartData = [];
   let gap = 0;
-  if ( maxBinId - minBinId < 69 )
+  if (maxBinId - minBinId < 69)
     gap = Math.floor((69 - (maxBinId - minBinId)) / 2);
 
-  for (let i = minBinId - gap; i <= maxBinId + (69 - (maxBinId - minBinId) - gap); i++) {
+  for (let i = minBinId - gap; i < maxBinId + (69 - (maxBinId - minBinId) - gap); i++) {
     const bin = binArrays.find(e => e.binId === i);
 
     let binXAmount = bin ? parseInt(bin.xAmount.toString(), 16) : 0;
     let binYAmount = bin ? parseInt(bin.yAmount.toString(), 16) : 0;
 
-    if ( i < minBinId || i > maxBinId ) {
+    if (i < minBinId || i > maxBinId) {
       binXAmount = 0
       binYAmount = 0
     }
 
-    charData[i - (minBinId - gap)] = {
+    chartData[i - (minBinId - gap)] = {
       'name': bin?.pricePerToken,
       'value': (binYAmount / (10 ** xDecimal) + binXAmount / (10 ** yDecimal))
     }
   }
 
-  data = charData;
+  const maxBin = binArrays.find(e => e.binId === maxBinId);
+  const minBin = binArrays.find(e => e.binId === minBinId);
 
   return (
     <div className="add-position max-w-3xl mx-auto ">
@@ -357,66 +455,80 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
             <div className="position-input">
               <div className="position-deposit flex pb-2">
                 <div className="flex" style={{ alignItems: 'center' }}>
-                  <Image src={xUrl} alt="X Logo" width={40} height={40} />
-                  <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
+                  <select className="currencySelect" value={selectedDepositToken} onChange={handleDepositTokenChange}>
+                    {poolRole === 0 ? (
+                      <>
+                        <option value="SOL">SOL</option>
+                        <option value="USDC">USDC</option>
+                      </>
+                    ) : (
+                      <>
+                        {poolRole === 1 ? (
+                          <option value="SOL">SOL</option>
+                        ) : (
+                          <option value="USDC">USDC</option>
+                        )}
+                      </>
+                    )}
+                  </select>
                 </div>
-                {disableDeposit === 'base' ? (
-                  <input
-                    type="number"
-                    id="mintx"
-                    value={0}
-                    disabled={true}
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    id="mintx"
-                    value={xAmount}
-                    onChange={(e) => setXAmount(parseFloat(e.target.value))}
-                  />
-                )}
+                <input
+                  type="number"
+                  id="deposit"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(parseFloat(e.target.value))}
+                />
               </div>
               <div className="flex justify-between">
-                <p>Balance: {xBalance}</p>
+                <p>Balance: {selectedDepositToken === 'SOL' ? solBalance : usdcBalance}</p>
                 <div className="quickButtons">
-                  <button className="font-s" onClick={() => setXAmount(xBalance)}>MAX</button>
-                  <button className="font-s" onClick={() => setXAmount(xBalance / 2)}>HALF</button>
+                  <button className="font-s" onClick={() => setDepositAmount(selectedDepositToken === 'SOL' ? solBalance : usdcBalance)}>MAX</button>
+                  <button className="font-s" onClick={() => setDepositAmount((selectedDepositToken === 'SOL' ? solBalance : usdcBalance) / 2)}>HALF</button>
                 </div>
               </div>
             </div>
             <div className="position-input">
               <div className="position-deposit flex pb-2">
-                <div className="flex" style={{ alignItems: 'center' }}>
-                  <Image src={yUrl} alt="Y Logo" width={40} height={40} />
-                  <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
-                </div>
-                {disableDeposit === 'quote' ? (
-                  <input
-                    type="number"
-                    id="minty"
-                    value={0}
-                    disabled
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    id="minty"
-                    value={yAmount}
-                    onChange={(e) => setYAmount(parseFloat(e.target.value))}
-                  />
+                {disableDeposit === 'base' ? null : (
+                  <div className="option-container flex" style={{ alignItems: 'center' }}>
+                    <input
+                      type="radio"
+                      id="option1"
+                      name="position"
+                      value={options[0]}
+                      checked={selectedOption === options[0]}
+                      onChange={handleChange}
+                      className="custom-radio"
+                    />
+                    <label htmlFor="option1" className="custom-label flex" style={{ alignItems: 'center' }}>
+                      <Image src={xUrl} alt="X Logo" width={40} height={40} />
+                      <p className="font-m pl-2">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
+                    </label>
+                  </div>
                 )}
-              </div>
-              <div className="flex justify-between">
-                <p>Balance: {yBalance}</p>
-                <div className="quickButtons">
-                  <button className="font-s" onClick={() => setYAmount(yBalance)}>MAX</button>
-                  <button className="font-s" onClick={() => setYAmount(yBalance / 2)}>HALF</button>
-                </div>
+                {disableDeposit === 'quote' ? null : (
+                  <div className="option-container flex" style={{ alignItems: 'center' }}>
+                    <input
+                      type="radio"
+                      id="option2"
+                      name="position"
+                      value={options[1]}
+                      checked={selectedOption === options[1]}
+                      onChange={handleChange}
+                      className="custom-radio"
+                    />
+                    <label htmlFor="option2" className="custom-label flex" style={{ alignItems: 'center' }}>
+                      <Image src={yUrl} alt="Y Logo" width={40} height={40} />
+                      <p className="font-m pl-2">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </>
       )}
+
       <Container className="max-w-3xl mx-auto">
         <SectionTitle variant="h6">Select Volatility Strategy</SectionTitle>
         <DescriptionContainer>
@@ -456,7 +568,7 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
         </RadioGroup> */}
 
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={data}>
+          <BarChart data={chartData}>
             {/* <CartesianGrid strokeDasharray="3 3" /> */}
             <XAxis dataKey="name" />
             <YAxis />
@@ -464,6 +576,17 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
             <Bar dataKey="value" fill="#8884d8" />
           </BarChart>
         </ResponsiveContainer>
+
+        {position !== undefined ? null : (
+          <RangeSlider
+            min={fixMinId}
+            max={fixMaxId}
+            minValue={minBinId}
+            maxValue={maxBinId}
+            onMinValueChange={setMinBinId}
+            onMaxValueChange={setMaxBinId}
+          />
+        )}
 
         <Typography variant="body1" align="center">
           You don&#39;t have liquidity in this position
@@ -480,21 +603,21 @@ function AddPosition({ mtPair, position, activeBin, refresh, setRefresh }: AddPo
                 <Box display="flex" justifyContent="space-between" gap={2}>
                   <Field as={StyledTextField}
                     name="minPrice"
-                    label="Min Bin Id"
+                    label="Min Price"
                     variant="outlined"
                     fullWidth
                     style={{ color: '#ffffff' }}
-                    value={minPrice}
+                    value={minBin ? minBin.pricePerToken : 0}
                     disabled={position === undefined ? false : true}
                     onChange={handleMinIdChanged}
                   />
                   <Field as={StyledTextField}
                     name="maxPrice"
-                    label="Max Bin Id"
+                    label="Max Price"
                     variant="outlined"
                     fullWidth
                     style={{ color: '#ffffff' }}
-                    value={maxPrice}
+                    value={maxBin ? maxBin.pricePerToken : 0}
                     disabled={position === undefined ? false : true}
                     onChange={handleMaxIdChanged}
                   />

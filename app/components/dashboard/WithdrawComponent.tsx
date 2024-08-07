@@ -7,16 +7,17 @@ import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { getMetadataUri } from '@/app/utiles';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
 import { PublicKey } from '@solana/web3.js';
+import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
 interface WithdrawProps {
-  position: MTPosition | undefined;
-  mtPair: MTPair | undefined;
-  activeBin: MTActiveBin | undefined;
-  refresh: boolean;
-  setRefresh: React.Dispatch<React.SetStateAction<boolean>>;
+  positionAddr: string;
 }
 
-const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: WithdrawProps) => {
+const Withdraw = ({ positionAddr }: WithdrawProps) => {
+  const { positions, mtPair } = useContext(MeteoraContext);
+
+  const position = positions?.find(e => e.address === positionAddr);
+
   const [loading, setLoading] = useState(false);
   const [bps, setBps] = useState(100);
   const [xReceive, setXReceive] = useState(position ? position.totalXAmount : 0);
@@ -73,7 +74,6 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
       toast.error("Remove Liquidity Fail!");
     else {
       toast.success("Remove Liquidity Success!");
-      setRefresh(!refresh);
     }
     setLoading(false);
   }
@@ -94,7 +94,6 @@ const Withdraw = ({ position, mtPair, activeBin, refresh, setRefresh }: Withdraw
       toast.error("Remove Liquidity Fail!");
     else {
       toast.success("Remove Liquidity Success!");
-      setRefresh(!refresh);
     }
     setLoading(false);
   }

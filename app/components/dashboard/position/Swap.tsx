@@ -8,14 +8,10 @@ import { getBalances, getActiveBin, swapToken } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { PublicKey } from '@solana/web3.js';
 import { getDecimals, getMetadataUri } from '@/app/utiles';
+import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
-interface SwapProps {
-  mtPair: MTPair | undefined;
-  refresh: boolean;
-  setRefresh: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
+function Swap() {
+  const { mtPair } = useContext(MeteoraContext);
   const [loading, setLoading] = useState(false);
   const [activeBin, setActiveBin] = useState<MTActiveBin | undefined>();
   const [xBalance, setXBalance] = useState(0);
@@ -101,7 +97,7 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
     };
 
     fetchData(); // Call the async function
-  }, [refresh, setRefresh])
+  }, [mtPair])
 
   const handleSwap = async () => {
     if (!mtPair) {
@@ -116,13 +112,22 @@ function Swap({ mtPair, refresh, setRefresh }: SwapProps) {
       toast.error("Get Decimals Error!");
       return;
     }
+
     const xAmountLamport = xAmount * (10 ** xDecimals.decimals);
     const yAmountLamport = yAmount * (10 ** yDecimals.decimals);
-
-
     const swapAmunt = swapXtoY ? xAmountLamport : yAmountLamport;
+
     setLoading(true);
-    await swapToken(jwtToken, mtPair.address, swapAmunt, swapXtoY);
+
+    const res = await swapToken(jwtToken, mtPair.address, swapAmunt, swapXtoY);
+    if ( !res.success ) {
+      toast.error("Swap error!");
+      setLoading(false);
+      return;
+    }
+    
+    await fetchBalance();
+
     setLoading(false);
   }
 
