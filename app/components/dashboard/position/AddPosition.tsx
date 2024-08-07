@@ -390,21 +390,30 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         return;
       }
 
-      const swapRes = await jupiterSwapApi(
-        jwtToken,
-        selectedDepositToken === 'SOL' ? SOL_MINT : USDC_MINT,
-        selectedOption === 'XToken' ? mtPair.mint_x : mtPair.mint_y,
-        selectedDepositToken === 'SOL' ? depositAmount * (10 ** SOL_DECIMALS) : depositAmount * (10 ** USDC_DECIMALS)
-      )
+      let xAmountLamport = 0;
+      let yAmountLamport = 0;
 
-      if (!swapRes.success) {
-        toast.error("Jupiter swap error!");
-        setLoading(false);
-        return;
+      if (selectedDepositToken === 'SOL' && ((selectedOption === 'XToken' && mtPair.mint_x === SOL_MINT) || (selectedOption === 'YToken' && mtPair.mint_y === SOL_MINT))) {
+        xAmountLamport = depositAmount;
+      } else if (selectedDepositToken === 'USDC' && ((selectedOption === 'XToken' && mtPair.mint_x === USDC_MINT) || (selectedOption === 'YToken' && mtPair.mint_y === USDC_MINT))) {
+        yAmountLamport = depositAmount;
+      } else {
+        const swapRes = await jupiterSwapApi(
+          jwtToken,
+          selectedDepositToken === 'SOL' ? SOL_MINT : USDC_MINT,
+          selectedOption === 'XToken' ? mtPair.mint_x : mtPair.mint_y,
+          selectedDepositToken === 'SOL' ? depositAmount * (10 ** SOL_DECIMALS) : depositAmount * (10 ** USDC_DECIMALS)
+        )
+  
+        if (!swapRes.success) {
+          toast.error("Jupiter swap error!");
+          setLoading(false);
+          return;
+        }
+  
+        xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount - 100000 : 0;
+        yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount - 100000 : 0;
       }
-
-      let xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount - 100000 : 0;
-      let yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount - 100000 : 0;
 
       const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId, selectedDepositToken, depositAmount);
       if (res.success === false)
