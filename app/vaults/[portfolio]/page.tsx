@@ -281,9 +281,16 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
           userDepositReduceAmount = deposit.solAmount;
         }
   
-        await userDepositReduceApi(jwtToken, userDepositReduceAmount, 1);
-        await adminWithdrawToUserApi(jwtToken, amount, 1);
+        const res = await adminWithdrawToUserApi(jwtToken, amount, 1);
+        console.log("Withdraw Res : ", res);
+        if ( res.success === false ) {
+          toast.error('Withdraw error!');
+          setLoading(false);
+          return;
+        }
   
+        await userDepositReduceApi(jwtToken, userDepositReduceAmount, 1);
+        toast.success('Withdraw success!');
         setLoading(false);
       } else {
         const trade = sumUsdc.positionUserUSDC + deposit.usdcAmount;
@@ -343,6 +350,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         }
   
         const res = await adminWithdrawToUserApi(jwtToken, amount, 2);
+        console.log("Withdraw Res : ", res);
         if ( res.success === false ) {
           toast.error('Withdraw error!');
           setLoading(false);
