@@ -18,62 +18,20 @@ import {
   getAccount,
 } from "@solana/spl-token";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ADMIN_WALLET_ADDRESS, DEPOSIT_SOLANA, DEPOSIT_USDC, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '../../config';
+import { ADMIN_WALLET_ADDRESS, DEPOSIT_SOLANA, DEPOSIT_USDC, Pool, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '../../config';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { getPair, getPositions, getUserPositionApi, removeLiquidity, userDepositApi, userWithdrawApi, adminWithdrawToUserApi, userDepositReduceApi } from '@/app/api/api';
 import { connection } from '@/app/utiles';
-
-interface Pool {
-  poolAddress: string;
-  positionSOl: number;
-  positionUSDC: number;
-  positionUserSol: number;
-  positionUserUSDC: number;
-  sol_usdc: number;
-  totalAmount: number;
-  userAmount: number;
-}
-
-interface UserDepositPosition {
-  totalAmount: number,
-  userAmount: number,
-  positionSol: number,
-  positionUSDC: number,
-  positionUserSol: number,
-  positionUserUSDC: number,
-}
-
-interface UserDeposit {
-  createAt: string;
-  id: number;
-  solAmount: number;
-  usdcAmount: number;
-  user: number;
-}
+import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
 function Portfolio({ params }: { params: { portfolio: string } }) {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number>(0);
   const [isDeposit, setIsDeposit] = useState(true);
-  const [solPosition, setSolPosition] = useState<UserDepositPosition>();
-  const [usdcPosition, setUsdcPosition] = useState<UserDepositPosition>();
-  const [userDeposit, setUserDeposit] = useState<UserDeposit>();
   const { jwtToken, userId } = useContext(JwtTokenContext);
+  const { solPosition, usdcPosition, userDeposit } = useContext(MeteoraContext)
+
   const wallet = useWallet();
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const res = await getUserPositionApi(jwtToken);
-      if (res.success === false)
-        return;
-
-      setSolPosition(res.response.sumSol);
-      setUsdcPosition(res.response.sumUsdc);
-      setUserDeposit(res.response.userDeposit);
-    };
-
-    fetchData(); // Call the async function
-  }, [])
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);

@@ -103,3 +103,32 @@ export interface Liquidity {
   liquidity: number;
   feeEarned: number;
 }
+
+
+export interface Pool {
+  poolAddress: string;
+  positionSOl: number;
+  positionUSDC: number;
+  positionUserSol: number;
+  positionUserUSDC: number;
+  sol_usdc: number;
+  totalAmount: number;
+  userAmount: number;
+}
+
+export interface UserDepositPosition {
+  totalAmount: number,
+  userAmount: number,
+  positionSol: number,
+  positionUSDC: number,
+  positionUserSol: number,
+  positionUserUSDC: number,
+}
+
+export interface UserDeposit {
+  createAt: string;
+  id: number;
+  solAmount: number;
+  usdcAmount: number;
+  user: number;
+}

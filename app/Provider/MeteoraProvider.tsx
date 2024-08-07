@@ -1,12 +1,13 @@
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode, useRef } from "react";
+import React, { createContext, useState, useEffect, ReactNode, useRef, useContext } from "react";
 import { toast } from "react-toastify";
-import { Group, MTActiveBin, MTPair, MTPosition, Liquidity } from "../config";
-import { getAllPair, getPair, getPositions, getActiveBin, getTokenPrice } from '../api/api'
+import { Group, MTActiveBin, MTPair, MTPosition, Liquidity, UserDepositPosition, UserDeposit } from "../config";
+import { getAllPair, getPair, getPositions, getActiveBin, getTokenPrice, getUserPositionApi } from '../api/api'
 import { getDecimals } from "../utiles";
 import { BN } from "@coral-xyz/anchor";
 import { isEqual } from 'lodash';
+import { JwtTokenContext } from "./JWTTokenProvider";
 
 interface MeteoraContextProps {
   pool: string;
@@ -21,6 +22,12 @@ interface MeteoraContextProps {
   setPositions: React.Dispatch<React.SetStateAction<MTPosition[] | undefined>>;
   positionLiquidities: Liquidity[] | undefined;
   setPositionLiquidities: React.Dispatch<React.SetStateAction<Liquidity[] | undefined>>;
+  solPosition: UserDepositPosition | undefined;
+  setSolPosition: React.Dispatch<React.SetStateAction<UserDepositPosition | undefined>>;
+  usdcPosition: UserDepositPosition | undefined;
+  setUsdcPosition: React.Dispatch<React.SetStateAction<UserDepositPosition | undefined>>;
+  userDeposit: UserDeposit | undefined;
+  setUserDeposit: React.Dispatch<React.SetStateAction<UserDeposit | undefined>>;
 }
 
 // This is just an initial placeholder value
@@ -37,6 +44,12 @@ export const MeteoraContext = createContext<MeteoraContextProps>({
   setPositions: () => undefined,
   positionLiquidities: undefined,
   setPositionLiquidities: () => undefined,
+  solPosition: undefined,
+  setSolPosition: () => undefined,
+  usdcPosition: undefined,
+  setUsdcPosition: () => undefined,
+  userDeposit: undefined,
+  setUserDeposit: () => undefined,
 });
 
 interface MeteoraProviderProps {
@@ -50,8 +63,19 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const [activeBin, setActiveBin] = useState<MTActiveBin | undefined>();
   const [positions, setPositions] = useState<MTPosition[] | undefined>();
   const [positionLiquidities, setPositionLiquidities] = useState<Liquidity[] | undefined>([]);
+
+  const [solPosition, setSolPosition] = useState<UserDepositPosition>();
+  const [usdcPosition, setUsdcPosition] = useState<UserDepositPosition>();
+  const [userDeposit, setUserDeposit] = useState<UserDeposit>();
+
+  const { jwtToken } = useContext(JwtTokenContext)
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const positionsRef = useRef<MTPosition[] | undefined>(positions);
+  const jwtTokenRef = useRef(jwtToken);
+
+  useEffect(() => {
+    jwtTokenRef.current = jwtToken;
+  }, [jwtToken]);
 
   const fetchPairs = async () => {
     const pairs = await getAllPair();
@@ -204,8 +228,9 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       if (pool) {
         await fetchActiveBin();
         await fetchPair_Positions();
-        startTimer();
       }
+
+      startTimer();
     };
 
     fetchData();
@@ -222,6 +247,15 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }, [positions]);
 
   const handleTimer = async () => {
+    if (jwtTokenRef.current) {
+      const res = await getUserPositionApi(jwtTokenRef.current);
+      console.log("#########", res)
+      if (res.success) {
+        setSolPosition(res.response.sumSol);
+        setUsdcPosition(res.response.sumUsdc);
+        setUserDeposit(res.response.userDeposit);
+      }
+    }
     if (pool) {
       fetchActiveBin();
       fetchPair_Positions();
@@ -236,7 +270,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }
 
   return (
-    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities }}>
+    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities, solPosition, setSolPosition, usdcPosition, setUsdcPosition, userDeposit, setUserDeposit }}>
       {children}
     </MeteoraContext.Provider>
   );

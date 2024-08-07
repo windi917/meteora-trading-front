@@ -403,8 +403,8 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         return;
       }
 
-      let xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount : 0;
-      let yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount : 0;
+      let xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount - 100000 : 0;
+      let yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount - 100000 : 0;
 
       const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId, selectedDepositToken, depositAmount);
       if (res.success === false)
