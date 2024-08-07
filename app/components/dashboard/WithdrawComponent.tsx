@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
 import { MTActiveBin, MTPair, MTPosition } from '@/app/config';
-import { removeLiquidity, closePosition } from '@/app/api/api';
+import { removeLiquidity, closePosition, getPoolDepositRole } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { getMetadataUri } from '@/app/utiles';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
@@ -28,21 +28,21 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
 
   useEffect(() => {
     const fetchMetadataUris = async () => {
-      if ( !mtPair )
+      if (!mtPair)
         return;
 
       if (mtPair.name.split("-").length === 2) {
         let mintXUri;
-        if ( mtPair.mint_x === SOL_MINT )
+        if (mtPair.mint_x === SOL_MINT)
           mintXUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
-        else if ( mtPair.mint_x === USDC_MINT )
+        else if (mtPair.mint_x === USDC_MINT)
           mintXUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
         else mintXUri = await getMetadataUri(new PublicKey(mtPair.mint_x));
 
         let mintYUri;
-        if ( mtPair.mint_y === SOL_MINT )
+        if (mtPair.mint_y === SOL_MINT)
           mintYUri = 'https://exponential.imgix.net/icons/assets/SOL_color.jpg?auto=format&fit=max&w=256';
-        else if ( mtPair.mint_y === USDC_MINT )
+        else if (mtPair.mint_y === USDC_MINT)
           mintYUri = 'https://exponential.imgix.net/icons/assets/USDC_color.jpg?auto=format&fit=max&w=256';
         else mintYUri = await getMetadataUri(new PublicKey(mtPair.mint_y));
 
@@ -63,12 +63,27 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     setLoading(true);
 
     let res;
-    if ( position.totalXAmount === 0 && position.totalYAmount === 0 ) {
+    if (position.totalXAmount === 0 && position.totalYAmount === 0) {
       toast.error("Nothing to withdraw in this position!");
       setLoading(false);
       return;
     }
-    else res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false);
+    else {
+      const positionRole = await getPoolDepositRole(mtPair.address);
+      if (!positionRole.success) {
+        toast.error("Get Pool Role Error!");
+        return;
+      }
+
+      let sol_usdc = 0;
+      if (positionRole)
+        sol_usdc = positionRole.response.sol_usdc;
+
+      if (sol_usdc === 1)
+        res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false, 'sol');
+      else if (sol_usdc == 2)
+        res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false, 'usdc');
+    }
 
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
@@ -87,9 +102,24 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     setLoading(true);
 
     let res;
-    if ( position.totalXAmount === 0 && position.totalYAmount === 0 && position.feeX === 0 && position.feeY === 0 )
+    if (position.totalXAmount === 0 && position.totalYAmount === 0 && position.feeX === 0 && position.feeY === 0)
       res = await closePosition(jwtToken, mtPair.address, position.address);
-    else res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true);
+    else {
+      const positionRole = await getPoolDepositRole(mtPair.address);
+      if (!positionRole.success) {
+        toast.error("Get Pool Role Error!");
+        return;
+      }
+
+      let sol_usdc = 0;
+      if (positionRole)
+        sol_usdc = positionRole.response.sol_usdc;
+
+      if (sol_usdc === 1)
+        res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true, 'sol');
+      else if (sol_usdc === 2)
+        res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true, 'usdc');
+    }
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
