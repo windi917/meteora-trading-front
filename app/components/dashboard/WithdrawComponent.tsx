@@ -106,6 +106,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
 
       toast.success("Remove Liquidity Success!");
     }
+
     setLoading(false);
   }
 
@@ -118,6 +119,8 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     setLoading(true);
 
     let res;
+    let sol_usdc = 0;
+
     if (position.totalXAmount === 0 && position.totalYAmount === 0 && position.feeX === 0 && position.feeY === 0)
       res = await closePosition(jwtToken, mtPair.address, position.address);
     else {
@@ -127,7 +130,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         return;
       }
 
-      let sol_usdc = 0;
       if (positionRole)
         sol_usdc = positionRole.response.sol_usdc;
 
@@ -136,11 +138,28 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
       else if (sol_usdc === 2)
         res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true, 'usdc');
     }
+    
+    console.log("##############", res)
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
+      const outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
+      const outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
+      let outAmount = parseInt(outXAmount) + parseInt(outYAmount);
+
+      if ( sol_usdc === 1 )
+        outAmount = outAmount / (10 ** 9);
+      else if ( sol_usdc === 2 )
+        outAmount = outAmount / (10 ** 6);
+
+      console.log("@@@@@@@@@@@@@@@@@@@@@@@@@", outXAmount, outYAmount, outAmount, sol_usdc)
+
+      if ( outAmount > 0 )
+        await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
+
       toast.success("Remove Liquidity Success!");
     }
+    
     setLoading(false);
   }
 
