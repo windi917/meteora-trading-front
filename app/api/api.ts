@@ -1,6 +1,24 @@
 import axios from "axios";
 import { METEORA_API_URL, BACKEND_API_URL, JUPITER_API_URL } from "../config";
 
+export const getPoolPositionApi = async () => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/meteora/poolPositions`,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
 export const getUserPositionApi = async (jwtToken: string | null) => {
   const config = {
     method: "get",

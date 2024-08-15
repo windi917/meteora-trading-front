@@ -3,7 +3,7 @@
 import React, { createContext, useState, useEffect, ReactNode, useRef, useContext } from "react";
 import { toast } from "react-toastify";
 import { Group, MTActiveBin, MTPair, MTPosition, Liquidity, UserDepositPosition, UserDeposit } from "../config";
-import { getAllPair, getPair, getPositions, getActiveBin, getTokenPrice, getUserPositionApi } from '../api/api'
+import { getAllPair, getPair, getPositions, getActiveBin, getTokenPrice, getUserPositionApi, getPoolPositionApi } from '../api/api'
 import { getDecimals } from "../utiles";
 import { BN } from "@coral-xyz/anchor";
 import { isEqual } from 'lodash';
@@ -14,6 +14,8 @@ interface MeteoraContextProps {
   setPool: React.Dispatch<React.SetStateAction<string>>;
   allGroups: Group[] | undefined;
   setAllGroups: React.Dispatch<React.SetStateAction<Group[] | undefined>>;
+  portfolioGroups: Group[] | undefined;
+  setPortfolioGroups: React.Dispatch<React.SetStateAction<Group[] | undefined>>;
   mtPair: MTPair | undefined;
   setMTPair: React.Dispatch<React.SetStateAction<MTPair | undefined>>;
   activeBin: MTActiveBin | undefined;
@@ -36,6 +38,8 @@ export const MeteoraContext = createContext<MeteoraContextProps>({
   setPool: () => '',
   allGroups: undefined,
   setAllGroups: () => undefined,
+  portfolioGroups: undefined,
+  setPortfolioGroups: () => undefined,
   mtPair: undefined,
   setMTPair: () => undefined,
   activeBin: undefined,
@@ -59,6 +63,7 @@ interface MeteoraProviderProps {
 export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) => {
   const [pool, setPool] = useState('');
   const [allGroups, setAllGroups] = useState<Group[] | undefined>([]);
+  const [portfolioGroups, setPortfolioGroups] = useState<Group[] | undefined>([]);
   const [mtPair, setMTPair] = useState<MTPair | undefined>();
   const [activeBin, setActiveBin] = useState<MTActiveBin | undefined>();
   const [positions, setPositions] = useState<MTPosition[] | undefined>();
@@ -225,6 +230,28 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       const newGroups = await fetchPairs();
       setAllGroups(newGroups);
 
+      const poolPositions = await getPoolPositionApi();
+
+      if (poolPositions.success === false)
+        return;
+
+      const poolPositionNames = poolPositions.response.map((e: any) => e.pool);
+
+      const filteredGroups = await Promise.all(
+        newGroups.map((group: Group) => {
+          // Filter the pairs in the group based on poolPositions
+          const filteredPairs = group.pairs.filter((pair) => poolPositionNames.includes(pair.address));
+
+          // Return a new group with the filtered pairs
+          return {
+            ...group,
+            pairs: filteredPairs,
+          };
+        }).filter((group: Group) => group.pairs.length > 0)
+      );
+
+      setPortfolioGroups(filteredGroups);
+
       if (pool) {
         await fetchActiveBin();
         await fetchPair_Positions();
@@ -270,7 +297,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }
 
   return (
-    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities, solPosition, setSolPosition, usdcPosition, setUsdcPosition, userDeposit, setUserDeposit }}>
+    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, portfolioGroups, setPortfolioGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities, solPosition, setSolPosition, usdcPosition, setUsdcPosition, userDeposit, setUserDeposit }}>
       {children}
     </MeteoraContext.Provider>
   );

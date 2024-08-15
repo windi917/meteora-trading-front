@@ -31,16 +31,18 @@ function Header() {
         </div>
         <nav className="space-x-10">
           <NavLink href="/vaults">VAULTS</NavLink>
-          <NavLink href="/vaults/solana">PORTFOLIO</NavLink>
-          { userRole === "ADMIN" ? (
-            <NavLink href="/dashboard">DASHBOARD</NavLink>
-          ) : null }
+          {userRole === "ADMIN" ? (
+            <>
+              <NavLink href="/dashboard">DASHBOARD</NavLink>
+              <NavLink href="/portfolio">PORTFOLIO</NavLink>
+            </>
+          ) : null}
           <NavLink href="/about">ABOUT</NavLink>
         </nav>
       </div>
 
       <div className="header-buttons">
-        <WalletInteraction/>
+        <WalletInteraction />
       </div>
     </header>
   );
