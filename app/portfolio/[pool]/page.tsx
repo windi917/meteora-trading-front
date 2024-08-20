@@ -11,61 +11,71 @@ import { useRouter } from "next/navigation";
 import { JwtTokenContext } from "@/app/Provider/JWTTokenProvider";
 import { MeteoraContext } from "@/app/Provider/MeteoraProvider";
 import PoolInfo from "@/app/components/dashboard/position/PoolInfo";
+import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 
 export default function PoolDetail({ params }: { params: { pool: string } }) {
   const [loading, setLoading] = useState<boolean>(false);
   const [refresh, setRefresh] = useState<boolean>(false);
   const { userRole } = useContext(JwtTokenContext);
   const { setPool } = useContext(MeteoraContext);
+  const { connected } = useWallet() as WalletContextState & {
+    signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+  };
   const router = useRouter();
 
   useEffect(() => {
-    if (userRole === "ADMIN") {
-      setPool(params.pool);
-    }
-    else
-      router.push("/");
-  }, [refresh, setRefresh])
+    setPool(params.pool);
+  }, [userRole, refresh, setRefresh])
 
-  return (
-    <div className="App">
-      {loading ? (
-        <>
-          <div style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: "1000"
-          }}>
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-              <Oval
-                height="80"
-                visible={true}
-                width="80"
-                color="#CCF869"
-                ariaLabel="oval-loading"
-              />
+  return !connected ? (
+    <div className="container mx-auto p-4">
+      Wallet disconnected!
+    </div>
+  ) : (
+    userRole === "ADMIN" ? (
+      <div className="App">
+        {loading ? (
+          <>
+            <div style={{
+              position: "fixed",
+              top: "0",
+              left: "0",
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: "1000"
+            }}>
+              <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                <Oval
+                  height="80"
+                  visible={true}
+                  width="80"
+                  color="#CCF869"
+                  ariaLabel="oval-loading"
+                />
+              </div>
             </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <PoolInfo />
-          <LiquidityInfo />
-          <div className="flex justify-between">
-            <Balances positionAddr='TOTAL' />
-            <UnclaimedFees positionAddr='TOTAL' />
-          </div>
-          <Position />
-        </>
-      )
-      }
-    </div >
-  );
+          </>
+        ) : (
+          <>
+            <PoolInfo />
+            <LiquidityInfo />
+            <div className="flex justify-between">
+              <Balances positionAddr='TOTAL' />
+              <UnclaimedFees positionAddr='TOTAL' />
+            </div>
+            <Position />
+          </>
+        )
+        }
+      </div >
+    ) : (
+      <div className="container mx-auto p-4">
+        Routing Error!
+      </div>
+    )
+  )
 };

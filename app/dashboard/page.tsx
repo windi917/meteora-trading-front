@@ -10,6 +10,7 @@ import { getMetadataUri, RPC } from "../utiles";
 import { PublicKey } from "@solana/web3.js";
 import { SOL_MINT, USDC_MINT, Pair, Group } from "../config";
 import { MeteoraContext } from "../Provider/MeteoraProvider";
+import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 
 interface PairItemProps {
   pair: Pair;
@@ -89,6 +90,10 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { userRole } = useContext(JwtTokenContext);
   const { allGroups } = useContext(MeteoraContext);
+  const { connected } = useWallet() as WalletContextState & {
+    signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+  };
+
   const router = useRouter();
 
   useEffect(() => {
@@ -116,13 +121,9 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if ( allGroups ) {
+    if (allGroups) {
       setTotalPages(Math.ceil(allGroups.length / pageSize));
       setDisplayedGroups(allGroups.slice(0, pageSize));
-    }
-
-    if (userRole !== "ADMIN") {
-      router.push("/"); // <-- Redirect to another page if not admin
     }
   }, [userRole, router, pageSize, allGroups]);
 
@@ -137,7 +138,7 @@ const Dashboard: React.FC = () => {
   }
 
   const handlePageChange = (page: number) => {
-    if ( !allGroups )
+    if (!allGroups)
       return;
 
     setCurrentPage(page);
@@ -168,117 +169,127 @@ const Dashboard: React.FC = () => {
     setSearchQuery(event.target.value);
   };
 
-  return (
+  return !connected ? (
     <div className="container mx-auto p-4">
-      <div className="shadow-md rounded-lg p-4">
-        <div className="mb-8 text-xl text-left font-primaryRegular text-textclr2">
-          <div className="relative" style={{ width: '40%' }}>
-            <input
-              type="text"
-              placeholder="Search by pool name or address"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-textclr2 focus:border-textclr2 sm:text-sm text-black"
-              style={{ backgroundColor: '#E5E7EB' }} // Setting background color explicitly with inline styles
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.9 14.32a8 8 0 1 1 1.414-1.414l4.243 4.243a1 1 0 0 1-1.415 1.415l-4.242-4.242zM8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" clipRule="evenodd" />
-              </svg>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-6 gap-4 mb-2">
-          <span className="font-m">Pool</span>
-          <span className="font-m">Your Deposits</span>
-          <span className="font-m">TVL</span>
-          <span className="font-m">24H Vol</span>
-          <span className="font-m">24hr Fee/TVL</span>
-          <span className="font-m">LM APR</span>
-        </div>
-        {displayedGroups.map((group, groupIndex) => (
-          <div key={groupIndex} className="mb-4">
-            <div
-              className="bg-gray-200 text-black p-4 rounded-lg cursor-pointer"
-              onClick={() => toggleGroup(groupIndex)}
-            >
-              <span className="font-m">{group.name} ({group.pairs.length} pools)</span>
-            </div>
-            {group.expanded && (
-              <div className="mt-2">
-                {group.pairs.map((pair: Pair, pairIndex: number) => (
-                  <PairItem pair={pair} key={pairIndex} />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-center mt-4">
-        <button
-          onClick={handleFirstPage}
-          className={`px-4 py-2 mx-1 ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
-          disabled={currentPage === 1}
-        >
-          First
-        </button>
-        <button
-          onClick={handlePrevPage}
-          className={`px-4 py-2 mx-1 ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
-          disabled={currentPage === 1}
-        >
-          Prev
-        </button>
-        {Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index).map(page => (
-          <button
-            key={page}
-            onClick={() => handlePageChange(page)}
-            className={`px-4 py-2 mx-1 ${page === currentPage ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white'} rounded-lg`}
-          >
-            {page}
-          </button>
-        ))}
-        <button
-          onClick={handleNextPage}
-          className={`px-4 py-2 mx-1 ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </button>
-        <button
-          onClick={handleLastPage}
-          className={`px-4 py-2 mx-1 ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
-          disabled={currentPage === totalPages}
-        >
-          Last
-        </button>
-      </div>
-      {loading && (
-        <div style={{
-          position: "fixed",
-          top: "0",
-          left: "0",
-          width: "100%",
-          height: "100%",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: "1000"
-        }}>
-          <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-            <Oval
-              height="80"
-              visible={true}
-              width="80"
-              color="#CCF869"
-              ariaLabel="oval-loading"
-            />
-          </div>
-        </div>
-      )}
+      Wallet disconnected!
     </div>
-  );
+  ) : (
+    userRole === "ADMIN" ? (
+      <div className="container mx-auto p-4">
+        <div className="shadow-md rounded-lg p-4">
+          <div className="mb-8 text-xl text-left font-primaryRegular text-textclr2">
+            <div className="relative" style={{ width: '40%' }}>
+              <input
+                type="text"
+                placeholder="Search by pool name or address"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-textclr2 focus:border-textclr2 sm:text-sm text-black"
+                style={{ backgroundColor: '#E5E7EB' }} // Setting background color explicitly with inline styles
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.9 14.32a8 8 0 1 1 1.414-1.414l4.243 4.243a1 1 0 0 1-1.415 1.415l-4.242-4.242zM8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-6 gap-4 mb-2">
+            <span className="font-m">Pool</span>
+            <span className="font-m">Your Deposits</span>
+            <span className="font-m">TVL</span>
+            <span className="font-m">24H Vol</span>
+            <span className="font-m">24hr Fee/TVL</span>
+            <span className="font-m">LM APR</span>
+          </div>
+          {displayedGroups.map((group, groupIndex) => (
+            <div key={groupIndex} className="mb-4">
+              <div
+                className="bg-gray-200 text-black p-4 rounded-lg cursor-pointer"
+                onClick={() => toggleGroup(groupIndex)}
+              >
+                <span className="font-m">{group.name} ({group.pairs.length} pools)</span>
+              </div>
+              {group.expanded && (
+                <div className="mt-2">
+                  {group.pairs.map((pair: Pair, pairIndex: number) => (
+                    <PairItem pair={pair} key={pairIndex} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={handleFirstPage}
+            className={`px-4 py-2 mx-1 ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
+            disabled={currentPage === 1}
+          >
+            First
+          </button>
+          <button
+            onClick={handlePrevPage}
+            className={`px-4 py-2 mx-1 ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          {Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index).map(page => (
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
+              className={`px-4 py-2 mx-1 ${page === currentPage ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white'} rounded-lg`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={handleNextPage}
+            className={`px-4 py-2 mx-1 ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+          <button
+            onClick={handleLastPage}
+            className={`px-4 py-2 mx-1 ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} rounded-lg`}
+            disabled={currentPage === totalPages}
+          >
+            Last
+          </button>
+        </div>
+        {loading && (
+          <div style={{
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: "1000"
+          }}>
+            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+              <Oval
+                height="80"
+                visible={true}
+                width="80"
+                color="#CCF869"
+                ariaLabel="oval-loading"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="container mx-auto p-4">
+        Routing Error!
+      </div>
+    )
+  )
 };
 
 export default Dashboard;
