@@ -176,6 +176,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
   const [selectedDepositToken, setSelectedDepositToken] = useState('SOL');
   const [poolRole, setPoolRole] = useState(0);
   const [selectedOption, setSelectedOption] = useState('XToken');
+  const [disableDeposit, setDisableDeposit] = useState('none');
 
   const wallet = useWallet();
 
@@ -187,19 +188,19 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
   const position = positions?.find((e) => e.address === positionAddr);
 
-  let disableDeposit = 'none';
-  if (activeBin) {
-    if (position !== undefined) {
+  useEffect(() => {
+    if (activeBin && position !== undefined) {
       if (activeBin.pricePerToken > position.positionBinData[position.positionBinData.length - 1].pricePerToken) {
-        disableDeposit = 'base';
+        setDisableDeposit('base');
         setSelectedOption(options[0]);
-      }
-      if (activeBin.pricePerToken < position.positionBinData[0].pricePerToken) {
-        disableDeposit = 'quote';
+      } else if (activeBin.pricePerToken < position.positionBinData[0].pricePerToken) {
+        setDisableDeposit('quote');
         setSelectedOption(options[1]);
+      } else {
+        setDisableDeposit('none');
       }
     }
-  }
+  }, [activeBin, position, options]);
 
   const fetchBalance = async () => {
     if (mtPair === undefined)

@@ -15,7 +15,6 @@ import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 
 export default function PoolDetail({ params }: { params: { pool: string } }) {
   const [loading, setLoading] = useState<boolean>(false);
-  const [refresh, setRefresh] = useState<boolean>(false);
   const { userRole } = useContext(JwtTokenContext);
   const { setPool } = useContext(MeteoraContext);
   const { connected } = useWallet() as WalletContextState & {
@@ -25,7 +24,7 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
 
   useEffect(() => {
     setPool(params.pool);
-  }, [userRole, refresh, setRefresh])
+  }, [userRole])
 
   return !connected ? (
     <div className="container mx-auto p-4">
