@@ -90,9 +90,18 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
-      const outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
-      const outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
-      let outAmount = parseInt(outXAmount) + parseInt(outYAmount);
+
+      let outXAmount = 0; 
+      let outYAmount = 0;
+
+      if ( res.swapXRes ) {
+        outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
+      }
+      if ( res.swapYRes ) {
+        outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
+      }
+
+      let outAmount = outXAmount + outYAmount;
 
       if ( sol_usdc === 1 )
         outAmount = outAmount / (10 ** 9);
