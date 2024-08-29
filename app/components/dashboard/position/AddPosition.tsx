@@ -384,6 +384,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         return;
       }
 
+      console.log("#############-------", selectedDepositToken, userDepositRes, depositAmount)
       if ((selectedDepositToken === "SOL" && userDepositRes.response.sol < depositAmount) ||
         (selectedDepositToken === "USDC" && userDepositRes.response.usdc < depositAmount)) {
         setLoading(false);

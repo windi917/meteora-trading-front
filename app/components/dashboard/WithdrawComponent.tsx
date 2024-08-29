@@ -95,10 +95,10 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
       let outYAmount = 0;
 
       if ( res.swapXRes ) {
-        outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
+        outXAmount = res.swapXRes.outAmount ? parseInt(res.swapXRes.outAmount) : 0;
       }
       if ( res.swapYRes ) {
-        outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
+        outYAmount = res.swapYRes.outAmount ? parseInt(res.swapYRes.outAmount) : 0;
       }
 
       let outAmount = outXAmount + outYAmount;
