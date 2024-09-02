@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from "next/navigation";
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
@@ -19,8 +19,10 @@ type ChartData = {
     label: string;
     data: number[];
     fill: boolean;
-    backgroundColor: string;
+    backgroundColor: CanvasGradient | string;
     borderColor: string;
+    borderWidth: number;
+    pointRadius: number;
   }[];
 };
 
@@ -28,6 +30,7 @@ type PriceData = [number, number];
 
 function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardProps) {
   const router = useRouter();
+  const chartRef = useRef<any>(null); // Reference to access the chart instance
   const [chartData, setChartData] = useState<ChartData>({
     labels: [],
     datasets: [],
@@ -49,17 +52,31 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
   useEffect(() => {
     const getChartData = async () => {
       const data = await fetchData(getDays(selectedInterval));
+
+      // Reduce the number of points
+      const reducedData = data.prices.filter((_: PriceData, index: number) => index % 5 === 0); // Select every 5th point
+
+      const gradient = chartRef.current
+        ? chartRef.current.ctx.createLinearGradient(0, 0, 0, 400)
+        : undefined;
+      if (gradient) {
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+        gradient.addColorStop(1, 'rgba(35, 31, 32, 0)');
+      }
+
       setChartData({
-        labels: data.prices.map((price: PriceData) =>
+        labels: reducedData.map((price: PriceData) =>
           new Date(price[0]).toLocaleDateString()
         ),
         datasets: [
           {
             label: `${token} Price`,
-            data: data.prices.map((price: PriceData) => price[1]),
-            fill: true,
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            borderColor: '#fff',
+            data: reducedData.map((price: PriceData) => price[1]),
+            fill: true, // Fill with gradient
+            backgroundColor: gradient || 'rgba(255, 255, 255, 0.1)', // Gradient effect
+            borderColor: '#fff', // Solid white line
+            borderWidth: 2, // Thicker line
+            pointRadius: 0, // No point circles
           },
         ],
       });
@@ -92,16 +109,6 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
     <div className="vault-card" style={{ width: `${width}%` }}>
       <h2 className="font-l">{title}</h2>
       <p className="font-s mb-8">Self-managed, auto-rebalancing defi pools.</p>
-      {/* <div className="flex mb-8">
-        <div style={{ textAlign: 'left' }}>
-          <p className="font-m">${aum.toLocaleString()}</p>
-          <p className="font-s">Assets Under Management</p>
-        </div>
-        <div className="ml-8" style={{ textAlign: 'left' }}>
-          <p className="font-m">{annReturn}%</p>
-          <p className="font-s">Ann. Return</p>
-        </div>
-      </div> */}
       <div className="time-interval-buttons">
         <button
           className={selectedInterval === '1D' ? 'active' : ''}
@@ -137,18 +144,17 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
 
       <div className="chart">
         <Line
+          ref={chartRef}
           data={chartData}
           options={{
             responsive: true,
             maintainAspectRatio: false,
             scales: {
               x: {
-                ticks: { color: '#fff' },
-                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                display: false, // Hide X-axis
               },
               y: {
-                ticks: { color: '#fff' },
-                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                display: false, // Hide Y-axis
               },
             },
             plugins: {
