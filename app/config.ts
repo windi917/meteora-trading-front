@@ -1,7 +1,8 @@
 import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 
-export const BACKEND_API_URL = 'https://b.dayprotocol.ai';
+// export const BACKEND_API_URL = 'https://b.dayprotocol.ai';
+export const BACKEND_API_URL = 'http://localhost:3900';
 export const METEORA_API_URL = 'https://dlmm-api.meteora.ag'
 export const JUPITER_API_URL = 'https://price.jup.ag/v6'
 
