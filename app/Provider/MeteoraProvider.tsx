@@ -88,10 +88,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const positionsRef = useRef<MTPosition[] | undefined>(positions);
   const jwtTokenRef = useRef(jwtToken);
 
-  useEffect(() => {
-    jwtTokenRef.current = jwtToken;
-  }, [jwtToken]);
-
   const fetchPairs = async () => {
     const pairs = await getAllPair();
     if (pairs.success === false) {
@@ -306,9 +302,9 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
         return;
       }
 
-      const data = sortedPos.reduce((acc, e) => 
+      const data = sortedPos.reduce((acc, e) =>
         acc + e.totalXAmount * xPriceData.price + e.totalYAmount * yPriceData.price
-      , 0);
+        , 0);
 
       usdc = data;
     }
@@ -317,6 +313,10 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }
 
   useEffect(() => {
+    if (jwtTokenRef.current === jwtToken)
+      return;
+
+    jwtTokenRef.current = jwtToken;
     console.log("JWTTOKEN: ", jwtToken);
 
     const fetchData = async () => {
@@ -345,6 +345,12 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
 
       setPortfolioGroups(filteredGroups);
 
+      if (pool) {
+        await fetchActiveBin();
+        await fetchPair_Positions();
+      }
+
+      startTimer();
       //////////////////////////////////////////
       console.log("-----------", poolPositionNames)
       // price
@@ -352,7 +358,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       let usdc = 0;
       let sol = 0;
 
-      for ( let i = 0; i < poolPositionNames.length; i ++ ) {
+      for (let i = 0; i < poolPositionNames.length; i++) {
         const res = await getPositionLiquidity(poolPositionNames[i]);
         console.log(res);
         if (res)
@@ -360,36 +366,33 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       }
 
       console.log("USDC : ", usdc)
-
-      const xRes = await getTokenPrice("SOL");
-      console.log("XRES: ", xRes);
-      if (!xRes.success ) {
-        return;
-      }
-
-      const xPriceData = xRes.response.data["SOL"];
-
-      if (!xPriceData) {
-        return;
-      }
-
-      if (typeof xPriceData.price === 'undefined' ) {
-        return;
-      }
-
-      sol = usdc / xPriceData.price;
-      console.log("SOL : ", sol)
-
+      if (usdc === 0) return;
+      
       setTotalUSDC(usdc);
-      setTotalSOL(sol);
-      //////////////////////////////////////////
 
-      if (pool) {
-        await fetchActiveBin();
-        await fetchPair_Positions();
+      for (let i = 0; i < 5; i++) {
+        const xRes = await getTokenPrice("SOL");
+        console.log("XRES: ", xRes);
+        if (!xRes.success) {
+          continue;
+        }
+
+        const xPriceData = xRes.response.data["SOL"];
+
+        if (!xPriceData) {
+          continue;
+        }
+
+        if (typeof xPriceData.price === 'undefined') {
+          continue;
+        }
+
+        sol = usdc / xPriceData.price;
+        console.log("SOL : ", sol)
+        setTotalSOL(sol);
+        break;
       }
-
-      startTimer();
+      //////////////////////////////////////////
     };
 
     fetchData();
