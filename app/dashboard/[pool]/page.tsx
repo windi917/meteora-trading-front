@@ -1,31 +1,27 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import LiquidityInfo from '../../components/dashboard/header/LiquidityInfo';
 import Balances from '../../components/dashboard/header/Balances';
 import UnclaimedFees from '../../components/dashboard/header/UnclaimedFees';
 import Position from '../../components/dashboard/position/Position';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
-import { useRouter } from "next/navigation";
 import { JwtTokenContext } from "@/app/Provider/JWTTokenProvider";
 import { MeteoraContext } from "@/app/Provider/MeteoraProvider";
-import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import PoolInfo from "@/app/components/dashboard/position/PoolInfo";
+import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 
 export default function PoolDetail({ params }: { params: { pool: string } }) {
   const [loading, setLoading] = useState<boolean>(false);
-  const [refresh, setRefresh] = useState<boolean>(false);
   const { userRole } = useContext(JwtTokenContext);
   const { setPool } = useContext(MeteoraContext);
   const { connected } = useWallet() as WalletContextState & {
     signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   };
-  const router = useRouter();
 
   useEffect(() => {
     setPool(params.pool);
-  }, [userRole, refresh, setRefresh])
+  }, [userRole]);
 
   return !connected ? (
     <div className="container mx-auto p-4">
@@ -60,17 +56,24 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
             </div>
           </>
         ) : (
-          <>
-            <PoolInfo />
-            <LiquidityInfo />
-            <div className="flex justify-between">
-              <Balances positionAddr='TOTAL' />
-              <UnclaimedFees positionAddr='TOTAL' />
+          <div className="container mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left side - Pool Info */}
+            <div className="lg:col-span-1 p-4 border lg:border-2 border-gray-300 rounded-lg shadow-md">
+              <PoolInfo />
             </div>
-            <Position />
-          </>
+
+            {/* Right side - Liquidity Info and Positions */}
+            <div className="lg:col-span-2 flex flex-col gap-6 lg:border lg:border-2 lg:border-gray-300 lg:rounded-lg shadow-md">
+              <LiquidityInfo />
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                <Balances positionAddr='TOTAL' />
+                <UnclaimedFees positionAddr='TOTAL' />
+              </div>
+              <Position />
+            </div>
+          </div>
         )}
-      </div>
+      </div >
     ) : (
       <div className="container mx-auto p-4">
         Routing Error!

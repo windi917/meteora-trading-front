@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import LiquidityInfo from '../../components/dashboard/header/LiquidityInfo';
 import Balances from '../../components/dashboard/header/Balances';
 import UnclaimedFees from '../../components/dashboard/header/UnclaimedFees';
 import Position from '../../components/dashboard/position/Position';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
-import { useRouter } from "next/navigation";
 import { JwtTokenContext } from "@/app/Provider/JWTTokenProvider";
 import { MeteoraContext } from "@/app/Provider/MeteoraProvider";
 import PoolInfo from "@/app/components/dashboard/position/PoolInfo";
@@ -20,11 +18,10 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
   const { connected } = useWallet() as WalletContextState & {
     signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   };
-  const router = useRouter();
 
   useEffect(() => {
     setPool(params.pool);
-  }, [userRole])
+  }, [userRole]);
 
   return !connected ? (
     <div className="container mx-auto p-4">
@@ -59,17 +56,23 @@ export default function PoolDetail({ params }: { params: { pool: string } }) {
             </div>
           </>
         ) : (
-          <>
-            <PoolInfo />
-            <LiquidityInfo />
-            <div className="flex justify-between">
-              <Balances positionAddr='TOTAL' />
-              <UnclaimedFees positionAddr='TOTAL' />
+          <div className="container mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left side - Pool Info */}
+            <div className="lg:col-span-1">
+              <PoolInfo />
             </div>
-            <Position />
-          </>
-        )
-        }
+
+            {/* Right side - Liquidity Info and Positions */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              <LiquidityInfo />
+              <div className="flex justify-between items-start gap-4">
+                <Balances positionAddr='TOTAL' />
+                <UnclaimedFees positionAddr='TOTAL' />
+              </div>
+              <Position />
+            </div>
+          </div>
+        )}
       </div >
     ) : (
       <div className="container mx-auto p-4">

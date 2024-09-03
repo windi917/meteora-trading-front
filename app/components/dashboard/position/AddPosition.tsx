@@ -2,13 +2,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { Oval } from "react-loader-spinner";
 import { toast } from "react-toastify";
-import { Box, Button, Typography, TextField, Radio, RadioGroup, FormControlLabel } from '@mui/material';
+import { Box, Button, Typography, TextField } from '@mui/material';
 import { TooltipProps } from 'recharts';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Formik, Form, Field } from 'formik';
 import { styled } from '@mui/system';
 import { BN } from '@coral-xyz/anchor';
-
 import { SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT } from '@/app/config';
 import { getBinIdByPrice, getPriceByBinId, getBalances, addPosition, addLiquidity, getBinArrays, getPoolDepositRole, jupiterSwapApi, getUserDepositAmountApi } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
@@ -27,37 +26,49 @@ interface CustomRadioProps {
 }
 
 const Container = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(4),
+  padding: theme.spacing(2),
+  [theme.breakpoints.up('md')]: {
+    padding: theme.spacing(4),
+  },
 }));
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
   marginBottom: theme.spacing(2),
   fontWeight: 'bold',
+  fontSize: '1rem',
+  [theme.breakpoints.up('md')]: {
+    fontSize: '1.25rem',
+  },
 }));
 
 const RadioContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'row',
-  gap: theme.spacing(3), // Adjust the gap between items
+  gap: theme.spacing(2),
+  flexWrap: 'wrap',
+  justifyContent: 'center',
 }));
 
 const DescriptionContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center', // Align items to the start
+  flexDirection: 'column',
+  alignItems: 'center',
   marginBottom: theme.spacing(2),
-  gap: theme.spacing(3), // Adjust the space between description and radio buttons
+  gap: theme.spacing(2),
+  [theme.breakpoints.up('md')]: {
+    flexDirection: 'row',
+  },
 }));
 
 const DescriptionText = styled(Box)(({ theme }) => ({
-  flex: '1',
-  fontSize: '14px',
-  lineHeight: 1.5,
+  flex: 1,
+  fontSize: '0.875rem',
+  textAlign: 'center',
+  [theme.breakpoints.up('md')]: {
+    fontSize: '1rem',
+    textAlign: 'left',
+  },
 }));
-
-// const ChartContainer = styled(Box)(({ theme }) => ({
-//   marginTop: theme.spacing(2),
-//   marginBottom: theme.spacing(2),
-// }));
 
 const FormContainer = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(2),
@@ -66,20 +77,20 @@ const FormContainer = styled(Box)(({ theme }) => ({
 const CustomRadio = styled(Box, { shouldForwardProp: (prop) => prop !== 'checked' })<CustomRadioProps>(({ theme, checked }) => ({
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center', // Align items horizontally
+  alignItems: 'center',
   padding: theme.spacing(2),
   border: checked ? '2px solid #f0f0f0' : '2px solid transparent',
   borderRadius: '8px',
   cursor: 'pointer',
   transition: 'border 0.3s',
+  width: '80px',
   '& img': {
     width: '50px',
     height: 'auto',
-    marginLeft: theme.spacing(2),
   },
   '& span': {
     marginTop: theme.spacing(1),
-    fontSize: '14px',
+    fontSize: '0.75rem',
   },
 }));
 
@@ -99,40 +110,35 @@ const CustomTooltip = (props: TooltipProps<any, any>) => {
 };
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
-  // Styles for the root element of the outlined input
   '& .MuiOutlinedInput-root': {
     '& fieldset': {
-      borderColor: '#ffffff',  // Default border color
+      borderColor: '#ffffff',
     },
     '&:hover fieldset': {
-      borderColor: '#ffffff',  // Border color on hover
+      borderColor: '#ffffff',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#ffffff',  // Border color when focused
+      borderColor: '#ffffff',
     },
-    // Styles for the disabled state
     '&.Mui-disabled': {
       '& fieldset': {
-        borderColor: 'gray',  // Border color when disabled
+        borderColor: 'gray',
       },
       '& .MuiOutlinedInput-input': {
-        color: 'gray !important',  // Text color when disabled
-        opacity: 1,  // Ensure opacity is set to 1 for disabled state
-        WebkitTextFillColor: 'gray',  // For WebKit browsers
+        color: 'gray !important',
+        opacity: 1,
+        WebkitTextFillColor: 'gray',
       },
     },
   },
-  // Styles for the input label
   '& .MuiInputLabel-outlined': {
-    color: '#ffffff',  // Label color when enabled
+    color: '#ffffff',
   },
-  // Styles for the label when the field is disabled
   '& .MuiInputLabel-outlined.Mui-disabled': {
-    color: 'gray !important',  // Label color when disabled
+    color: 'gray !important',
   },
-  // Default input text color
   '& .MuiInputBase-input': {
-    color: '#ffffff',  // Text color when enabled
+    color: '#ffffff',
   },
 }));
 
@@ -140,7 +146,7 @@ const strategyDescription = [
   "Spot provides a uniform distribution that is versatile and risk-adjusted, suitable for any type of market and conditions. This is similar to setting a CLMM price range.",
   "Curve is ideal for a concentrated approach that aims to maximise capital efficiency. This is great for stables or pairs where the price does not change very often.",
   "Bid-Ask is an inverse Curve distribution, typically deployed single sided for a DCA in or out strategy. It can be used to capture volatility especially when prices vastly move out of the typical range."
-]
+];
 
 interface BinData {
   binId: number;
@@ -160,7 +166,6 @@ function AddPosition({ positionAddr }: AddPositionProps) {
   const [xDecimal, setXDecimal] = useState(0);
   const [yDecimal, setYDecimal] = useState(0);
   const [selectedStrategy, setSelectedStrategy] = useState('SPOT');
-  // const [selectedToken, setSelectedToken] = useState('SOL');
   const { jwtToken } = useContext(JwtTokenContext);
 
   const [minBinId, setMinBinId] = useState(0);
@@ -171,8 +176,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
   const [maxPrice, setMaxPrice] = useState(0);
   const [xUrl, setXUrl] = useState('');
   const [yUrl, setYUrl] = useState('');
-  const [binArrays, setBinArrays] = useState<BinData[]>([])
-
+  const [binArrays, setBinArrays] = useState<BinData[]>([]);
   const [selectedDepositToken, setSelectedDepositToken] = useState('SOL');
   const [poolRole, setPoolRole] = useState(0);
   const [selectedOption, setSelectedOption] = useState('XToken');
@@ -203,8 +207,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
   }, [activeBin, position, options]);
 
   const fetchBalance = async () => {
-    if (mtPair === undefined)
-      return;
+    if (mtPair === undefined) return;
 
     const resX = await getBalances(SOL_MINT);
     if (resX.success === false) {
@@ -221,14 +224,13 @@ function AddPosition({ positionAddr }: AddPositionProps) {
     }
 
     setUSDCBalance(resY.response.balance);
-  }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       await fetchBalance();
 
-      if (!mtPair)
-        return;
+      if (!mtPair) return;
 
       // Get Pool deposit role
       const poolRoleRes = await getPoolDepositRole(mtPair.address);
@@ -238,16 +240,12 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       }
 
       let sol_usdc = 0;
-      if (poolRoleRes)
-        sol_usdc = poolRoleRes.response.sol_usdc;
+      if (poolRoleRes) sol_usdc = poolRoleRes.response.sol_usdc;
 
-      if (sol_usdc === 0 || sol_usdc === 1)
-        setSelectedDepositToken('SOL');
-      else
-        setSelectedDepositToken('USDC');
+      if (sol_usdc === 0 || sol_usdc === 1) setSelectedDepositToken('SOL');
+      else setSelectedDepositToken('USDC');
 
       setPoolRole(sol_usdc);
-      /////////////////////////////////////
 
       const xDecimals = await getDecimals(mtPair.mint_x);
       const yDecimals = await getDecimals(mtPair.mint_y);
@@ -256,8 +254,8 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         return;
       }
 
-      setXDecimal(xDecimals.decimals)
-      setYDecimal(yDecimals.decimals)
+      setXDecimal(xDecimals.decimals);
+      setYDecimal(yDecimals.decimals);
 
       if (mtPair.name.split("-").length === 2) {
         let mintXUri;
@@ -278,8 +276,8 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         setYUrl(mintYUri);
       }
 
-      const minBin = (position !== undefined ? position.lowerBinId : (activeBin ? activeBin.binId - 34 : 0));
-      const maxBin = (position !== undefined ? position.upperBinId : (activeBin ? activeBin.binId + 34 : 0));
+      const minBin = position !== undefined ? position.lowerBinId : activeBin ? activeBin.binId - 34 : 0;
+      const maxBin = position !== undefined ? position.upperBinId : activeBin ? activeBin.binId + 34 : 0;
 
       const minP = await getPriceByBinId(mtPair.address, minBin);
       const maxP = await getPriceByBinId(mtPair.address, maxBin);
@@ -307,52 +305,17 @@ function AddPosition({ positionAddr }: AddPositionProps) {
     };
 
     fetchData(); // Call the async function
-  }, [])
+  }, []);
 
   const handleStrategyChange = (value: string) => {
     setSelectedStrategy(value);
   };
-
-  const handleMinIdChanged = async (e: any) => {
-    if (!mtPair)
-      return;
-
-    setMinPrice(Number(e.target.value));
-
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value));
-    if (binId.success === false)
-      return;
-
-    if (maxBinId - binId.response.binId > 69 || maxBinId - binId.response.binId <= 0)
-      return;
-
-    setMinBinId(binId.response.binId);
-  }
-
-  const handleMaxIdChanged = async (e: any) => {
-    if (!mtPair)
-      return;
-
-    setMaxPrice(Number(e.target.value));
-
-    const binId = await getBinIdByPrice(mtPair.address, Number(e.target.value));
-    if (binId.success === false)
-      return;
-
-    if (binId.response.binId - minBinId > 69 || binId.response.binId - minBinId <= 0)
-      return;
-
-    setMaxBinId(binId.response.binId);
-  }
 
   const handleAddLiquidity = async () => {
     if (!mtPair || !activeBin || !wallet.publicKey) {
       toast.error("Pool or ActiveBin invalid!");
       return;
     }
-
-    console.log("DEPOSIT: ", depositAmount, selectedDepositToken);
-    console.log("SWAP TO: ", selectedOption)
 
     if (position && depositAmount <= 0) {
       toast.error("Input deposit amount correctly!");
@@ -368,23 +331,19 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
     if (position === undefined) {
       const res = await addPosition(jwtToken, mtPair.address, selectedStrategy, 0, 0, minBinId, maxBinId);
-      if (res.success === false)
-        toast.error("Add Position Fail!");
+      if (res.success === false) toast.error("Add Position Fail!");
       else {
         fetchBalance();
         toast.success("Add Position Success!");
       }
-    }
-    else {
+    } else {
       const userDepositRes = await getUserDepositAmountApi();
-      console.log("User Deposits: ", userDepositRes);
       if (!userDepositRes.success) {
         setLoading(false);
         toast.error("Get user deposit error!");
         return;
       }
 
-      console.log("#############-------", selectedDepositToken, userDepositRes, depositAmount)
       if ((selectedDepositToken === "SOL" && userDepositRes.response.sol < depositAmount) ||
         (selectedDepositToken === "USDC" && userDepositRes.response.usdc < depositAmount)) {
         setLoading(false);
@@ -405,28 +364,27 @@ function AddPosition({ positionAddr }: AddPositionProps) {
           selectedDepositToken === 'SOL' ? SOL_MINT : USDC_MINT,
           selectedOption === 'XToken' ? mtPair.mint_x : mtPair.mint_y,
           selectedDepositToken === 'SOL' ? depositAmount * (10 ** SOL_DECIMALS) : depositAmount * (10 ** USDC_DECIMALS)
-        )
-  
+        );
+
         if (!swapRes.success) {
           toast.error("Jupiter swap error!");
           setLoading(false);
           return;
         }
-  
+
         xAmountLamport = selectedOption === 'XToken' ? swapRes.outAmount - 100000 : 0;
         yAmountLamport = selectedOption === 'YToken' ? swapRes.outAmount - 100000 : 0;
       }
 
       const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId, selectedDepositToken, depositAmount);
-      if (res.success === false)
-        toast.error("Add Liquidity Fail!");
+      if (res.success === false) toast.error("Add Liquidity Fail!");
       else {
         fetchBalance();
         toast.success("Add Liquidity Success!");
       }
     }
     setLoading(false);
-  }
+  };
 
   const handleDepositTokenChange = (e: any) => {
     setSelectedDepositToken(e.target.value);
@@ -434,8 +392,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
   let chartData = [];
   let gap = 0;
-  if (maxBinId - minBinId < 69)
-    gap = Math.floor((69 - (maxBinId - minBinId)) / 2);
+  if (maxBinId - minBinId < 69) gap = Math.floor((69 - (maxBinId - minBinId)) / 2);
 
   for (let i = minBinId - gap; i < maxBinId + (69 - (maxBinId - minBinId) - gap); i++) {
     const bin = binArrays.find(e => e.binId === i);
@@ -444,53 +401,52 @@ function AddPosition({ positionAddr }: AddPositionProps) {
     let binYAmount = bin ? parseInt(bin.yAmount.toString(), 16) : 0;
 
     if (i < minBinId || i > maxBinId) {
-      binXAmount = 0
-      binYAmount = 0
+      binXAmount = 0;
+      binYAmount = 0;
     }
 
     chartData[i - (minBinId - gap)] = {
       'name': bin?.pricePerToken,
-      'value': (binYAmount / (10 ** xDecimal) + binXAmount / (10 ** yDecimal))
-    }
+      'value': (binYAmount / (10 ** xDecimal) + binXAmount / (10 ** yDecimal)),
+    };
   }
 
   const maxBin = binArrays.find(e => e.binId === maxBinId);
   const minBin = binArrays.find(e => e.binId === minBinId);
 
   return (
-    <div className="add-position max-w-3xl mx-auto ">
+    <div className="max-w-full md:max-w-3xl mx-auto px-4">
       {position === undefined ? null : (
         <>
-          <p>Enter deposit amount</p>
-          <div className="position-border flex justify-between pt-6">
-            <div className="position-input">
-              <div className="position-deposit flex pb-2">
-                <div className="flex" style={{ alignItems: 'center' }}>
-                  <select className="currencySelect" value={selectedDepositToken} onChange={handleDepositTokenChange}>
-                    {poolRole === 0 ? (
-                      <>
+          <Typography variant="h6" className="mb-2">Enter deposit amount</Typography>
+          <div className="position-border flex flex-col md:flex-row justify-between gap-4 pt-4">
+            <div className="position-input w-full md:w-1/2">
+              <div className="position-deposit flex md:flex-row items-center gap-2 pb-2">
+                <select className="currencySelect" value={selectedDepositToken} onChange={handleDepositTokenChange}>
+                  {poolRole === 0 ? (
+                    <>
+                      <option value="SOL">SOL</option>
+                      <option value="USDC">USDC</option>
+                    </>
+                  ) : (
+                    <>
+                      {poolRole === 1 ? (
                         <option value="SOL">SOL</option>
+                      ) : (
                         <option value="USDC">USDC</option>
-                      </>
-                    ) : (
-                      <>
-                        {poolRole === 1 ? (
-                          <option value="SOL">SOL</option>
-                        ) : (
-                          <option value="USDC">USDC</option>
-                        )}
-                      </>
-                    )}
-                  </select>
-                </div>
+                      )}
+                    </>
+                  )}
+                </select>
                 <input
                   type="number"
                   id="deposit"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(parseFloat(e.target.value))}
+                  className="w-full md:w-auto"
                 />
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <p>Balance: {selectedDepositToken === 'SOL' ? solBalance : usdcBalance}</p>
                 <div className="quickButtons">
                   <button className="font-s" onClick={() => setDepositAmount(selectedDepositToken === 'SOL' ? solBalance : usdcBalance)}>MAX</button>
@@ -498,10 +454,10 @@ function AddPosition({ positionAddr }: AddPositionProps) {
                 </div>
               </div>
             </div>
-            <div className="position-input">
-              <div className="position-deposit flex pb-2">
+            <div className="position-input w-full md:w-1/2">
+              <div className="position-deposit flex flex-col md:flex-row items-center gap-2">
                 {disableDeposit === 'base' ? null : (
-                  <div className="option-container flex" style={{ alignItems: 'center' }}>
+                  <div className="option-container flex items-center">
                     <input
                       type="radio"
                       id="option1"
@@ -511,14 +467,14 @@ function AddPosition({ positionAddr }: AddPositionProps) {
                       onChange={handleChange}
                       className="custom-radio"
                     />
-                    <label htmlFor="option1" className="custom-label flex" style={{ alignItems: 'center' }}>
+                    <label htmlFor="option1" className="custom-label flex items-center">
                       <Image src={xUrl} alt="X Logo" width={40} height={40} />
                       <p className="font-m pl-2">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
                     </label>
                   </div>
                 )}
                 {disableDeposit === 'quote' ? null : (
-                  <div className="option-container flex" style={{ alignItems: 'center' }}>
+                  <div className="option-container flex items-center">
                     <input
                       type="radio"
                       id="option2"
@@ -528,7 +484,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
                       onChange={handleChange}
                       className="custom-radio"
                     />
-                    <label htmlFor="option2" className="custom-label flex" style={{ alignItems: 'center' }}>
+                    <label htmlFor="option2" className="custom-label flex items-center">
                       <Image src={yUrl} alt="Y Logo" width={40} height={40} />
                       <p className="font-m pl-2">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
                     </label>
@@ -540,7 +496,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         </>
       )}
 
-      <Container className="max-w-3xl mx-auto">
+      <Container>
         <SectionTitle variant="h6">Select Volatility Strategy</SectionTitle>
         <DescriptionContainer>
           <DescriptionText>
@@ -563,24 +519,8 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         </DescriptionContainer>
 
         <SectionTitle variant="h6">Set Price Range</SectionTitle>
-        {/* <RadioGroup row value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)}>
-          <RadioContainer>
-            <FormControlLabel
-              value={mtPair ? mtPair.name.split('-')[0] : ''}
-              control={<Radio color="primary" />}
-              label={mtPair ? mtPair.name.split('-')[0] : ''}
-            />
-            <FormControlLabel
-              value={mtPair ? mtPair.name.split('-')[1] : ''}
-              control={<Radio color="primary" />}
-              label={mtPair ? mtPair.name.split('-')[1] : ''}
-            />
-          </RadioContainer>
-        </RadioGroup> */}
-
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={chartData}>
-            {/* <CartesianGrid strokeDasharray="3 3" /> */}
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
@@ -588,7 +528,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
           </BarChart>
         </ResponsiveContainer>
 
-        {position !== undefined ? null : (
+        {position === undefined ? null : (
           <RangeSlider
             min={fixMinId}
             max={fixMaxId}
@@ -599,7 +539,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
           />
         )}
 
-        <Typography variant="body1" align="center">
+        <Typography variant="body1" align="center" className="mt-4">
           You don&#39;t have liquidity in this position
         </Typography>
         <Formik
@@ -611,33 +551,31 @@ function AddPosition({ positionAddr }: AddPositionProps) {
           {() => (
             <Form>
               <FormContainer>
-                <Box display="flex" justifyContent="space-between" gap={2}>
+                <Box display="flex" flexDirection="column" gap={2}>
                   <Field as={StyledTextField}
                     name="minPrice"
                     label="Min Price"
                     variant="outlined"
                     fullWidth
-                    style={{ color: '#ffffff' }}
                     value={minBin ? minBin.pricePerToken : 0}
                     disabled={position === undefined ? false : true}
-                    onChange={handleMinIdChanged}
+                    onChange={(e: any) => setMinPrice(e.target.value)}
                   />
                   <Field as={StyledTextField}
                     name="maxPrice"
                     label="Max Price"
                     variant="outlined"
                     fullWidth
-                    style={{ color: '#ffffff' }}
                     value={maxBin ? maxBin.pricePerToken : 0}
                     disabled={position === undefined ? false : true}
-                    onChange={handleMaxIdChanged}
+                    onChange={(e: any) => setMaxPrice(e.target.value)}
                   />
                   <Field as={StyledTextField}
                     name="numBins"
                     label="Num Bins"
                     variant="outlined"
-                    disabled={position === undefined ? false : true}
                     fullWidth
+                    disabled
                     value={maxBinId - minBinId + 1}
                   />
                 </Box>
@@ -652,30 +590,9 @@ function AddPosition({ positionAddr }: AddPositionProps) {
         </Formik>
       </Container>
       {loading && (
-        <>
-          <div style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: "1000"
-          }}>
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-              <Oval
-                height="80"
-                visible={true}
-                width="80"
-                color="#CCF869"
-                ariaLabel="oval-loading"
-              />
-            </div>
-          </div>
-        </>
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <Oval height="80" visible={true} width="80" color="#CCF869" ariaLabel="oval-loading" />
+        </div>
       )}
     </div>
   );

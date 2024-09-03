@@ -106,7 +106,8 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
   };
 
   return (
-    <div className="vault-card" style={{ width: `${width}%` }}>
+    // style={{ width: `${width}%` }}
+    <div className="vault-card"> 
       <h2 className="font-l">{title}</h2>
       <p className="font-s mb-8">Self-managed, auto-rebalancing defi pools.</p>
       <div className="time-interval-buttons">

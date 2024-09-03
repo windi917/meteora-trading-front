@@ -1,26 +1,25 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { PublicKey } from '@solana/web3.js';
-import { MTPair } from '@/app/config';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
 import { getMetadataUri, toDecimalString } from '@/app/utiles';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
 interface AddPositionProps {
-  positionAddr: string
+  positionAddr: string;
 }
 
 function UnclaimedFees({ positionAddr }: AddPositionProps) {
   const [xUrl, setXUrl] = useState('');
   const [yUrl, setYUrl] = useState('');
-  const { mtPair, positions } = useContext(MeteoraContext)
+  const { mtPair, positions } = useContext(MeteoraContext);
 
-  const position = positions?.find(e => e.address === positionAddr)
+  const position = positions?.find(e => e.address === positionAddr);
   let xFee, yFee;
 
   if (positionAddr === 'TOTAL') {
-    xFee = positions ? positions.length ? positions.map(e => e.feeX).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
-    yFee = positions ? positions.length ? positions.map(e => e.feeY).reduce((acc, value) => Number(acc) + Number(value)) : 0 : 0;
+    xFee = positions ? (positions.length ? positions.map(e => e.feeX).reduce((acc, value) => Number(acc) + Number(value)) : 0) : 0;
+    yFee = positions ? (positions.length ? positions.map(e => e.feeY).reduce((acc, value) => Number(acc) + Number(value)) : 0) : 0;
   } else {
     xFee = position ? position.feeX : 0;
     yFee = position ? position.feeY : 0;
@@ -28,8 +27,7 @@ function UnclaimedFees({ positionAddr }: AddPositionProps) {
 
   useEffect(() => {
     const fetchMetadataUris = async () => {
-      if (!mtPair)
-        return;
+      if (!mtPair) return;
 
       if (mtPair.name.split("-").length === 2) {
         let mintXUri;
@@ -55,19 +53,20 @@ function UnclaimedFees({ positionAddr }: AddPositionProps) {
   }, [mtPair]);
 
   return (
-    <div className="unclaimed-fees">
-      <p className="pb-6">Your Unclaimed Swap Fee</p>
-      <div className="flex pb-2" style={{ alignItems: 'center' }}>
-        <Image src={xUrl} alt="X Logo" width={40} height={40} />
-        <h2 className="pl-2">{toDecimalString(xFee)} {mtPair ? mtPair.name.split('-')[0] : ''}</h2>
-      </div>
-      <div className="flex" style={{ alignItems: 'center' }}>
-        <Image src={yUrl} alt="Y Logo" width={40} height={40} />
-        <h2 className="pl-2">{toDecimalString(yFee)} {mtPair ? mtPair.name.split('-')[1] : ''}</h2>
+    <div className="p-4 lg:p-6">
+      <p className="text-lg font-semibold pb-4">Unclaimed Swap Fee</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Image src={xUrl} alt="X Logo" width={40} height={40} className="rounded-full" />
+          <h2 className="text-lg font-medium">{toDecimalString(xFee)} {mtPair ? mtPair.name.split('-')[0] : ''}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Image src={yUrl} alt="Y Logo" width={40} height={40} className="rounded-full" />
+          <h2 className="text-lg font-medium">{toDecimalString(yFee)} {mtPair ? mtPair.name.split('-')[1] : ''}</h2>
+        </div>
       </div>
     </div>
-  )
-
-};
+  );
+}
 
 export default UnclaimedFees;

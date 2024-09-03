@@ -42,17 +42,16 @@ function Swap() {
       'supply': new BN(res.response.activeBin.supply, 16),
       'xAmount': new BN(res.response.activeBin.xAmount, 16),
       'yAmount': new BN(res.response.activeBin.yAmount, 16)
-    }
+    };
 
     setActiveBin(bin);
-  }
+  };
 
   const fetchBalance = async () => {
-    if (mtPair === undefined)
-      return;
+    if (mtPair === undefined) return;
 
     const resX = await getBalances(mtPair.mint_x);
-    if (resX.success === false) {
+    if (!resX.success) {
       toast.error("Get Balances fail!");
       return;
     }
@@ -60,21 +59,20 @@ function Swap() {
     setXBalance(resX.response.balance);
 
     const resY = await getBalances(mtPair.mint_y);
-    if (resY.success === false) {
+    if (!resY.success) {
       toast.error("Get Balances fail!");
       return;
     }
 
     setYBalance(resY.response.balance);
-  }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       await fetchActiveBin();
       await fetchBalance();
 
-      if (!mtPair)
-        return;
+      if (!mtPair) return;
 
       if (mtPair.name.split("-").length === 2) {
         let mintXUri;
@@ -97,7 +95,7 @@ function Swap() {
     };
 
     fetchData(); // Call the async function
-  }, [mtPair])
+  }, [mtPair]);
 
   const handleSwap = async () => {
     if (!mtPair) {
@@ -108,159 +106,94 @@ function Swap() {
     const xDecimals = await getDecimals(mtPair.mint_x);
     const yDecimals = await getDecimals(mtPair.mint_y);
 
-    if ( !xDecimals.success || !yDecimals.success ) {
+    if (!xDecimals.success || !yDecimals.success) {
       toast.error("Get Decimals Error!");
       return;
     }
 
     const xAmountLamport = xAmount * (10 ** xDecimals.decimals);
     const yAmountLamport = yAmount * (10 ** yDecimals.decimals);
-    const swapAmunt = swapXtoY ? xAmountLamport : yAmountLamport;
+    const swapAmount = swapXtoY ? xAmountLamport : yAmountLamport;
 
     setLoading(true);
 
-    const res = await swapToken(jwtToken, mtPair.address, swapAmunt, swapXtoY);
-    if ( !res.success ) {
+    const res = await swapToken(jwtToken, mtPair.address, swapAmount, swapXtoY);
+    if (!res.success) {
       toast.error("Swap error!");
       setLoading(false);
       return;
     }
-    
-    await fetchBalance();
 
+    await fetchBalance();
     setLoading(false);
-  }
+  };
 
   return (
-    <div className="max-w-3xl mx-auto pt-6">
-      {swapXtoY ? (
-        <>
-          <div className="swap-input">
-            <div className="position-deposit flex pb-2">
-              <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src={xUrl} alt="X Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
-              </div>
-              <input
-                type="number"
-                id="mintx"
-                value={xAmount}
-                onChange={(e) => { setXAmount(parseFloat(e.target.value)); setYAmount(parseFloat(e.target.value) * (activeBin ? activeBin.pricePerToken : 0)) }}
-              />
+    <div className="max-w-3xl mx-auto p-4">
+      <div className="swap-section space-y-6">
+        {/* Swap Input Section */}
+        <div className="swap-input space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Image src={swapXtoY ? xUrl : yUrl} alt="Token Logo" width={36} height={36} />
+              <p className="font-medium text-sm">{mtPair ? mtPair.name.split('-')[swapXtoY ? 0 : 1] : ''}</p>
             </div>
-            <div className="flex justify-between">
-              <p>Balance: {xBalance}</p>
-              <div className="quickButtons">
-                <button className="font-s">MAX</button>
-                <button className="font-s">HALF</button>
-              </div>
+            <input
+              type="number"
+              value={swapXtoY ? xAmount : yAmount}
+              onChange={(e) => swapXtoY ? setXAmount(parseFloat(e.target.value)) : setYAmount(parseFloat(e.target.value))}
+              className="border border-gray-300 rounded px-2 py-1 w-1/2 text-sm"
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <p>Balance: {swapXtoY ? xBalance : yBalance}</p>
+            <div className="quickButtons space-x-2">
+              <button className="font-medium" onClick={() => swapXtoY ? setXAmount(xBalance) : setYAmount(yBalance)}>MAX</button>
+              <button className="font-medium" onClick={() => swapXtoY ? setXAmount(xBalance / 2) : setYAmount(yBalance / 2)}>HALF</button>
             </div>
           </div>
-          <div className='mt-10 flex' style={{ justifyContent: 'center', alignItems: 'center' }}>
-            <Image src="/swap-up.png" alt="Swap Logo" width={40} height={40} onClick={() => { setSwapXtoY(!swapXtoY) }} />
+        </div>
+
+        {/* Swap Button */}
+        <div className="flex justify-center items-center">
+          <Image src="/swap-up.png" alt="Swap Logo" width={32} height={32} onClick={() => { setSwapXtoY(!swapXtoY) }} className="cursor-pointer" />
+        </div>
+
+        {/* Swap Output Section */}
+        <div className="swap-input space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Image src={swapXtoY ? yUrl : xUrl} alt="Token Logo" width={36} height={36} />
+              <p className="font-medium text-sm">{mtPair ? mtPair.name.split('-')[swapXtoY ? 1 : 0] : ''}</p>
+            </div>
+            <input
+              type="number"
+              value={swapXtoY ? yAmount : xAmount}
+              disabled
+              className="border border-gray-300 rounded px-2 py-1 w-1/2 text-sm bg-gray-100"
+            />
           </div>
-          <div className="swap-input mt-10">
-            <div className="position-deposit flex pb-2">
-              <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src={yUrl} alt="Y Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
-              </div>
-              <input
-                type="number"
-                id="minty"
-                value={yAmount}
-                disabled
-                onChange={(e) => setYAmount(parseFloat(e.target.value))}
-              />
-            </div>
-            <div className="flex justify-between">
-              <p>Balance: {yBalance}</p>
-              <div className="quickButtons">
-                <button className="font-s">MAX</button>
-                <button className="font-s">HALF</button>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="swap-input">
-            <div className="position-deposit flex pb-2">
-              <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src={yUrl} alt="Y Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[1] : ''}</p>
-              </div>
-              <input
-                type="number"
-                id="minty"
-                value={yAmount}
-                onChange={(e) => { setYAmount(parseFloat(e.target.value)); setXAmount(parseFloat(e.target.value) / (activeBin ? activeBin.pricePerToken : 0)) }}
-              />
-            </div>
-            <div className="flex justify-between">
-              <p>Balance: {yBalance}</p>
-              <div className="quickButtons">
-                <button className="font-s">MAX</button>
-                <button className="font-s">HALF</button>
-              </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <p>Balance: {swapXtoY ? yBalance : xBalance}</p>
+            <div className="quickButtons space-x-2">
+              <button className="font-medium" disabled>MAX</button>
+              <button className="font-medium" disabled>HALF</button>
             </div>
           </div>
-          <div className='mt-10 flex' style={{ justifyContent: 'center', alignItems: 'center' }}>
-            <Image src="/swap-up.png" alt="Swap Logo" width={40} height={40} onClick={() => { setSwapXtoY(!swapXtoY) }} />
+        </div>
+
+        {/* Confirm Swap Button */}
+        <button className="w-full bg-blue-600 text-white py-2 rounded text-sm" onClick={handleSwap}>
+          Swap
+        </button>
+
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <Oval height="80" visible={true} width="80" color="#CCF869" ariaLabel="oval-loading" />
           </div>
-          <div className="swap-input mt-10">
-            <div className="position-deposit flex pb-2">
-              <div className="flex" style={{ alignItems: 'center' }}>
-                <Image src={xUrl} alt="X Logo" width={40} height={40} />
-                <p className="font-m pl-2 pr-4">{mtPair ? mtPair.name.split('-')[0] : ''}</p>
-              </div>
-              <input
-                type="number"
-                id="mintx"
-                value={xAmount}
-                disabled
-                onChange={(e) => setXAmount(parseFloat(e.target.value))}
-              />
-            </div>
-            <div className="flex justify-between">
-              <p>Balance: {xBalance}</p>
-              <div className="quickButtons">
-                <button className="font-s">MAX</button>
-                <button className="font-s">HALF</button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      <button className="w-full bg-black text-white py-2 rounded mt-10 mb-4" onClick={handleSwap}>
-        Swap
-      </button>
-      {loading && (
-        <>
-          <div style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: "1000"
-          }}>
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-              <Oval
-                height="80"
-                visible={true}
-                width="80"
-                color="#CCF869"
-                ariaLabel="oval-loading"
-              />
-            </div>
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };

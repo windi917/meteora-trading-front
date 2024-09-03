@@ -30,6 +30,10 @@ interface MeteoraContextProps {
   setUsdcPosition: React.Dispatch<React.SetStateAction<UserDepositPosition | undefined>>;
   userDeposit: UserDeposit | undefined;
   setUserDeposit: React.Dispatch<React.SetStateAction<UserDeposit | undefined>>;
+  totalUSDC: number;
+  setTotalUSDC: React.Dispatch<React.SetStateAction<number>>;
+  totalSOL: number;
+  setTotalSOL: React.Dispatch<React.SetStateAction<number>>;
 }
 
 // This is just an initial placeholder value
@@ -54,6 +58,10 @@ export const MeteoraContext = createContext<MeteoraContextProps>({
   setUsdcPosition: () => undefined,
   userDeposit: undefined,
   setUserDeposit: () => undefined,
+  totalSOL: 0,
+  setTotalSOL: () => 0,
+  totalUSDC: 0,
+  setTotalUSDC: () => 0,
 });
 
 interface MeteoraProviderProps {
@@ -72,6 +80,8 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const [solPosition, setSolPosition] = useState<UserDepositPosition>();
   const [usdcPosition, setUsdcPosition] = useState<UserDepositPosition>();
   const [userDeposit, setUserDeposit] = useState<UserDeposit>();
+  const [totalUSDC, setTotalUSDC] = useState<number>(0);
+  const [totalSOL, setTotalSOL] = useState<number>(0);
 
   const { jwtToken } = useContext(JwtTokenContext)
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -225,7 +235,90 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
     });
   }
 
+  const getPositionLiquidity = async (pool: string) => {
+    const pair = await getPair(pool);
+    if (pair.success === false) {
+      return;
+    }
+
+    const posRes = await getPositions(pool);
+    if (posRes.success === false) {
+      return;
+    }
+
+    const xRes = await getDecimals(pair.response.mint_x);
+    const yRes = await getDecimals(pair.response.mint_y);
+    if (!xRes.success || !yRes.success) {
+      return;
+    }
+
+    const decimalX = xRes.decimals;
+    const decimalY = yRes.decimals;
+
+    const pos: MTPosition[] = posRes.response.userPositions.map((e: any) => {
+      const one = positionsRef.current?.find(item => item.address === e.publicKey);
+      return {
+        'address': e.publicKey,
+        'feeX': new BN(e.positionData.feeX, 16).toNumber() / (10 ** decimalX),
+        'feeY': new BN(e.positionData.feeY, 16).toNumber() / (10 ** decimalY),
+        'lowerBinId': e.positionData.lowerBinId,
+        'positionBinData': e.positionData.positionBinData,
+        'rewardOne': new BN(e.positionData.rewardOne, 16).toNumber() / (10 ** decimalX),
+        'rewardTwo': new BN(e.positionData.rewardTwo, 16).toNumber() / (10 ** decimalY),
+        'totalClaimedFeeXAmount': new BN(e.positionData.totalClaimedFeeXAmount, 16).toNumber() / (10 ** decimalX),
+        'totalClaimedFeeYAmount': new BN(e.positionData.totalClaimedFeeYAmount, 16).toNumber() / (10 ** decimalY),
+        'totalXAmount': e.positionData.totalXAmount / (10 ** decimalX),
+        'totalYAmount': e.positionData.totalYAmount / (10 ** decimalY),
+        'upperBinId': e.positionData.upperBinId,
+        'visible': one ? one.visible : false,
+        'view': one ? one.view : 'add',
+      }
+    });
+
+    const sortedPos = pos.sort((a, b) => {
+      const totalA = a.totalXAmount + a.totalYAmount;
+      const totalB = b.totalXAmount + b.totalYAmount;
+      return totalA - totalB;
+    });
+
+    // price
+    let usdc = 0;
+    const symbols = pair.response.name.split('-');
+    if (symbols.length === 2) {
+      const xSymbol = symbols[0];
+      const ySymbol = symbols[1];
+
+      const xRes = await getTokenPrice(xSymbol);
+      const yRes = await getTokenPrice(ySymbol);
+
+      if (!xRes.success || !yRes.success) {
+        return;
+      }
+
+      const xPriceData = xRes.response.data[xSymbol];
+      const yPriceData = yRes.response.data[ySymbol];
+
+      if (!xPriceData || !yPriceData) {
+        return;
+      }
+
+      if (typeof xPriceData.price === 'undefined' || typeof yPriceData.price === 'undefined') {
+        return;
+      }
+
+      const data = sortedPos.reduce((acc, e) => 
+        acc + e.totalXAmount * xPriceData.price + e.totalYAmount * yPriceData.price
+      , 0);
+
+      usdc = data;
+    }
+
+    return usdc;
+  }
+
   useEffect(() => {
+    console.log("JWTTOKEN: ", jwtToken);
+
     const fetchData = async () => {
       const newGroups = await fetchPairs();
       setAllGroups(newGroups);
@@ -252,6 +345,45 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
 
       setPortfolioGroups(filteredGroups);
 
+      //////////////////////////////////////////
+      console.log("-----------", poolPositionNames)
+      // price
+
+      let usdc = 0;
+      let sol = 0;
+
+      for ( let i = 0; i < poolPositionNames.length; i ++ ) {
+        const res = await getPositionLiquidity(poolPositionNames[i]);
+        console.log(res);
+        if (res)
+          usdc += res;
+      }
+
+      console.log("USDC : ", usdc)
+
+      const xRes = await getTokenPrice("SOL");
+      console.log("XRES: ", xRes);
+      if (!xRes.success ) {
+        return;
+      }
+
+      const xPriceData = xRes.response.data["SOL"];
+
+      if (!xPriceData) {
+        return;
+      }
+
+      if (typeof xPriceData.price === 'undefined' ) {
+        return;
+      }
+
+      sol = usdc / xPriceData.price;
+      console.log("SOL : ", sol)
+
+      setTotalUSDC(usdc);
+      setTotalSOL(sol);
+      //////////////////////////////////////////
+
       if (pool) {
         await fetchActiveBin();
         await fetchPair_Positions();
@@ -267,7 +399,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
         clearInterval(intervalRef.current);
       }
     };
-  }, [pool]);
+  }, [pool, jwtToken]);
 
   useEffect(() => {
     positionsRef.current = positions;
@@ -276,7 +408,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const handleTimer = async () => {
     if (jwtTokenRef.current) {
       const res = await getUserPositionApi(jwtTokenRef.current);
-      console.log("#########", res)
+      // console.log("#########", res)
       if (res.success) {
         setSolPosition(res.response.sumSol);
         setUsdcPosition(res.response.sumUsdc);
@@ -297,7 +429,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }
 
   return (
-    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, portfolioGroups, setPortfolioGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities, solPosition, setSolPosition, usdcPosition, setUsdcPosition, userDeposit, setUserDeposit }}>
+    <MeteoraContext.Provider value={{ pool, setPool, allGroups, setAllGroups, portfolioGroups, setPortfolioGroups, mtPair, setMTPair, activeBin, setActiveBin, positions, setPositions, positionLiquidities, setPositionLiquidities, solPosition, setSolPosition, usdcPosition, setUsdcPosition, userDeposit, setUserDeposit, totalSOL, setTotalSOL, totalUSDC, setTotalUSDC }}>
       {children}
     </MeteoraContext.Provider>
   );

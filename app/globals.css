@@ -51,7 +51,7 @@ h2 {
 
 .container {
   text-align: center;
-  padding: 20px;
+  /* padding: 20px; */
 }
 
 .vaults {
@@ -67,8 +67,9 @@ h2 {
   border: 1px solid rgb(var(--card-border-color));
   border-radius: 12px;
   padding: 20px;
-  /* width: 100%; */
-  /* max-width: 400px; */
+  width: 100%;
+  max-width: 350px; /* Updated max width */
+  flex: 1 1 300px; /* Flex-grow for better responsiveness */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -125,14 +126,12 @@ h2 {
   margin-top: 1rem;
   border-radius: 1rem;
   align-self: center;
-  /* Center the button within the card */
   width: 100%;
 }
 
 .time-interval-buttons {
   display: flex;
   gap: 1rem;
-  /* Adjust the value as per your spacing preference */
 }
 
 .time-interval-buttons button {
@@ -140,29 +139,23 @@ h2 {
   cursor: pointer;
   transition: filter 0.3s, background-color 0.3s;
   filter: brightness(0.3);
-  /* Increase brightness on hover */
   font-size: 0.8rem;
 }
 
 .time-interval-buttons button:hover {
   filter: brightness(1.2);
-  /* Increase brightness on hover */
 }
 
 .time-interval-buttons button:active {
   filter: brightness(0.8);
-  /* Decrease brightness on click */
 }
 
 .time-interval-buttons button.active {
   filter: brightness(1.1);
-  /* Slightly increase brightness for active button */
 }
 
-/*  */
 .App {
-  /* font-family: Arial, sans-serif; */
-  padding: 20px;
+  padding: 10px;
 }
 
 .liquidity-info {
@@ -171,53 +164,21 @@ h2 {
 }
 
 .total-liquidity,
-.fees-earned {
-  margin-bottom: 20px;
-  background-color: #303030;
-  border: 0px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 20px;
-  width: 48%;
-}
-
+.fees-earned,
 .balances,
-.unclaimed-fees {
-  border: 1px solid #e5e7eb;
+.unclaimed-fees,
+.your-position,
+.add-position {
   border-radius: 10px;
-  margin: 20px;
-  padding: 20px;
-  width: 48%;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 100%;
 }
 
-.your-position {
-  margin-bottom: 20px;
-  border-radius: 10px;
-  padding: 20px;
-  padding-left: 40px;
-  padding-right: 40px;
-}
 
-.position-card {
-  border: 1px solid #808080;
-  border-radius: 10px;
-  align-items: center; 
-}
-
-.position-card-body {
-  border-top: 1px solid #808080;
-  /* background-color: #303030; */
-}
-
-.add-position,
-.position {
-  margin-bottom: 20px;
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.position {
-  border: none;
-}
+/* .position { */
+  /* width: 100%; */
+/* } */
 
 .tabs {
   display: flex;
@@ -258,7 +219,7 @@ h2 {
   display: flex;
   flex-direction: column;
   margin-bottom: 10px;
-  width: 48%;
+  width: 100%;
 }
 
 .position-input input {
@@ -276,7 +237,6 @@ h2 {
   cursor: pointer;
 }
 
-/*****************************/
 .swap-input {
   display: flex;
   flex-direction: column;
@@ -288,16 +248,13 @@ h2 {
   background-color: unset;
   text-align: right;
 }
-/*****************************/
 
-/*****************************/
 .depositContainer {
-  /* background-color: #1c1c1e; */
   color: white;
   padding-left: 20px;
   border-radius: 10px;
-  width: 400px;
-  /* Adjust width as needed */
+  width: 100%;
+  max-width: 400px;
   margin: 0 auto;
 }
 
@@ -392,7 +349,6 @@ h2 {
   transition: background-color 0.3s;
 }
 
-/* Hover effect */
 .quickButtons button:hover {
   background-color: #444;
 }
@@ -402,7 +358,6 @@ h2 {
   border-color: #777;
 }
 
-/* Active effect */
 .quickButtons button.active {
   background-color: #555;
   border-color: #666;
@@ -429,4 +384,35 @@ h2 {
 }
 .option-container {
   margin-right: 20px;
+}
+
+/* Media Queries for Responsive Design */
+@media (max-width: 768px) {
+  .vaults {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .vault-card {
+    max-width: 90%;
+    flex: 1 1 auto; /* Adjust flex for mobile */
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .depositContainer {
+    width: 90%;
+  }
+
+  .time-interval-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-item p {
+    text-align: center;
+  }
 }

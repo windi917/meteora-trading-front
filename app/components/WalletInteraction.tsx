@@ -30,7 +30,7 @@ const WalletInteraction: FC = () => {
 
     try {
       const data = JSON.stringify({
-        address: publicKey.toBase58(), // Convert public key to base58 string
+        address: publicKey.toBase58(),
       });
 
       const config = {
@@ -79,7 +79,7 @@ const WalletInteraction: FC = () => {
       const message = new TextEncoder().encode("Sign this message for signup");
       const signedMessage = await signMessage(message);
       const data = JSON.stringify({
-        address: publicKey.toBase58(), // Convert public key to base58 string
+        address: publicKey.toBase58(),
         msg: "Sign this message for signup",
         signature: Buffer.from(signedMessage).toString("base64"),
       });
@@ -111,11 +111,11 @@ const WalletInteraction: FC = () => {
   return (
     <div>
       <ToastContainer />
-      <div className="flex" style={{ alignItems: 'center' }}>
+      <div className="flex justify-center items-center flex-col">
         {isClient && <WalletMultiButton />}
         {connected && isRegistered === false ? (
           <button
-            className="bg-[#ccf869] border-2 mt-1 border-whitesmoke font-primaryRegular leading-normal py-2 px-6 rounded-3xl text-[0.9em] duration-300 ease-in-out text-black hover:bg-[#bbe759] hover:text-black"
+            className="bg-[#ccf869] border-2 mt-1 border-whitesmoke font-primaryRegular leading-normal py-2 px-6 rounded-3xl text-[0.9em] duration-300 ease-in-out text-black hover:bg-[#bbe759] hover:text-black mt-4"
             onClick={handleSignup}
           >
             Sign Up
