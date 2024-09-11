@@ -313,8 +313,15 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   }
 
   useEffect(() => {
-    if (jwtTokenRef.current === jwtToken)
-      return;
+    if (jwtTokenRef.current === jwtToken) {
+      startTimer();
+      
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
 
     jwtTokenRef.current = jwtToken;
     console.log("JWTTOKEN: ", jwtToken);
@@ -352,27 +359,26 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
 
       startTimer();
       //////////////////////////////////////////
-      console.log("-----------", poolPositionNames)
       // price
-
       let usdc = 0;
       let sol = 0;
 
       for (let i = 0; i < poolPositionNames.length; i++) {
         const res = await getPositionLiquidity(poolPositionNames[i]);
-        console.log(res);
+        // console.log(res);
         if (res)
           usdc += res;
       }
 
-      console.log("USDC : ", usdc)
+      // console.log("USDC : ", usdc)
       if (usdc === 0) return;
       
       setTotalUSDC(usdc);
 
       for (let i = 0; i < 5; i++) {
         const xRes = await getTokenPrice("SOL");
-        console.log("XRES: ", xRes);
+        const usdcRes = await getTokenPrice("USDC");
+        // console.log("XRES: ", xRes, usdcRes);
         if (!xRes.success) {
           continue;
         }
@@ -388,7 +394,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
         }
 
         sol = usdc / xPriceData.price;
-        console.log("SOL : ", sol)
+        // console.log("SOL : ", sol)
         setTotalSOL(sol);
         break;
       }
@@ -413,6 +419,15 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       const res = await getUserPositionApi(jwtTokenRef.current);
       // console.log("#########", res)
       if (res.success) {
+        if (res.response.sumSol.positionSol > res.response.sumSol.totalAmount) {
+          const annRate = (res.response.sumSol.positionSol - res.response.sumSol.totalAmount) * 40.0 / 100.0;
+          res.response.sumSol.positionUserSol -= res.response.sumSol.positionSol * annRate / res.response.sumSol.positionSol;
+        }
+        if (res.response.sumUsdc.positionUSDC > res.response.sumUsdc.totalAmount) {
+          const annRate = (res.response.sumUsdc.positionUSDC - res.response.sumUsdc.totalAmount) * 40.0 / 100.0;
+          res.response.sumUsdc.positionUserUSDC -= res.response.sumUsdc.positionUSDC * annRate / res.response.sumUsdc.positionUSDC;
+        }
+
         setSolPosition(res.response.sumSol);
         setUsdcPosition(res.response.sumUsdc);
         setUserDeposit(res.response.userDeposit);

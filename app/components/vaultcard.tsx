@@ -7,8 +7,8 @@ import 'chart.js/auto';
 type VaultCardProps = {
   title: string;
   token: string;
-  aum: number;
-  annReturn: number;
+  aum: number | undefined;
+  annReturn: number | undefined;
   button: boolean;
   width: number;
 };
@@ -106,10 +106,18 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
   };
 
   return (
-    // style={{ width: `${width}%` }}
-    <div className="vault-card"> 
+    // 
+    // className={`px-6 py-2 ${isDeposit ? 'font-m border-b' : 'font-s'}`}
+    <div
+      className="vault-card"
+      style={width > 0 ? { width: `${width}%` } : {}}
+    >
       <h2 className="font-l">{title}</h2>
       <p className="font-s mb-8">Self-managed, auto-rebalancing defi pools.</p>
+      <p className="font-m mb-2">{token === 'solana' ? `${aum ? aum.toFixed(2) : 0}SOL` : `$${aum ? aum.toFixed(2) : 0}`}</p>
+      <p className="font-s mb-8">Assets Under Management</p>
+      <p className="font-m mb-2">{annReturn?.toFixed(2)}%</p>
+      <p className="font-s mb-8">Ann. Return</p>
       <div className="time-interval-buttons">
         <button
           className={selectedInterval === '1D' ? 'active' : ''}

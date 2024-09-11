@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 
-export const BACKEND_API_URL = 'https://dayprotocol.ai';
+export const BACKEND_API_URL = 'https://backend.dayprotocol.ai';
 export const METEORA_API_URL = 'https://dlmm-api.meteora.ag'
 export const JUPITER_API_URL = 'https://price.jup.ag/v6'
 
@@ -107,7 +107,7 @@ export interface Liquidity {
 
 export interface Pool {
   poolAddress: string;
-  positionSOl: number;
+  positionSol: number;
   positionUSDC: number;
   positionUserSol: number;
   positionUserUSDC: number;

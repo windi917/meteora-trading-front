@@ -314,6 +314,31 @@ export const adminPositionWithdrawApi = async (jwtToken: string | null, pool: st
   }
 }
 
+export const adminGetBenefit = async (jwtToken: string | null, amount: number, withdrawType: number) => {
+  const data = {
+    'amount': amount,
+    'withdrawType': withdrawType,
+  };
+
+  const config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + "/user/adminBenefit",
+    headers: {
+      "Authorization": "Bearer " + jwtToken,
+      "Content-Type": "application/json"
+    },
+    data: data,
+  };
+
+  try {
+    const res = await axios.request(config);
+    return res.data;
+  } catch (error) {
+    return { success: false };
+  }
+}
+
 export const adminWithdrawToUserApi = async (jwtToken: string | null, amount: number, withdrawType: number) => {
   const data = {
     'amount': amount,

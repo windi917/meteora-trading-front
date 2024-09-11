@@ -16,7 +16,7 @@ const NavLink: React.FC<NavLinkProps> = ({ href, children, onClick }) => {
   return (
     <Link href={href} passHref legacyBehavior>
       <a
-        className="block w-full px-4 py-2 text-sm text-white hover:text-blue-400 active:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 text-center" // Center text inside full width
+        className="block w-full px-4 py-2 text-sm text-white hover:text-blue-400 active:text-blue-600  transition-colors duration-200 text-center" // focus:outline-none focus:ring-2 focus:ring-blue-500
         onClick={onClick} // Handle item click
       >
         {children}
@@ -64,10 +64,14 @@ const Header: React.FC = () => {
       <div className="flex items-center justify-between w-full md:w-auto">
         <div className="flex items-center">
           <Image src="/logo.svg" alt="Logo" width={50} height={50} className="mr-4" />
-          <div className="flex flex-row">
-            <span className="text-sm text-white">Total:</span>
-            <span className="text-sm text-white">{totalUSDC.toFixed(2)}$({totalSOL.toFixed(2)}SOL)</span>
-          </div>
+          {/* {userRole === "ADMIN" ? (
+            <div className="flex flex-row">
+              <span className="text-sm text-white">Total:</span>
+              <span className="text-sm text-white">{totalUSDC.toFixed(2)}$({totalSOL.toFixed(2)}SOL)</span>
+            </div>
+          ) : (
+            null
+          )} */}
         </div>
 
         {/* Mobile Menu Toggle Button */}

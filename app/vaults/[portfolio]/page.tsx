@@ -19,13 +19,14 @@ import {
 import { useWallet } from "@solana/wallet-adapter-react";
 import { ADMIN_WALLET_ADDRESS, DEPOSIT_SOLANA, DEPOSIT_USDC, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT, Pool } from '../../config';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
-import { getPair, getPositions, getUserPositionApi, removeLiquidity, userDepositApi, userWithdrawApi, adminWithdrawToUserApi, userDepositReduceApi } from '@/app/api/api';
+import { getPair, getPositions, getUserPositionApi, removeLiquidity, userDepositApi, userWithdrawApi, adminWithdrawToUserApi, userDepositReduceApi, adminGetBenefit } from '@/app/api/api';
 import { connection } from '@/app/utiles';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
 function Portfolio({ params }: { params: { portfolio: string } }) {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number>(0);
+  const [withdrawPercent, setWithdrawPercent] = useState<number>(0);
   const [isDeposit, setIsDeposit] = useState(true);
   const { jwtToken, userId } = useContext(JwtTokenContext);
   const { solPosition, usdcPosition, userDeposit } = useContext(MeteoraContext);
@@ -35,6 +36,11 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     setAmount(value);
+  };
+
+  const handleWithdrawAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setWithdrawPercent(value);
   };
 
   const handleDeposit = async () => {
@@ -114,7 +120,8 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
       transaction.recentBlockhash = blockHash.blockhash;
       const signed = await wallet.signTransaction(transaction);
       const signature = await connection.sendRawTransaction(
-        signed.serialize()
+        signed.serialize(),
+        { skipPreflight: true }
       );
 
       const txHash = (await signature).toString();
@@ -131,6 +138,8 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
   }
 
   const handleWithdraw = async () => {
+    const amount = tradeFunds * withdrawPercent / 100;
+
     if (amount <= 0) {
       toast.error("Input withdraw amount correctly!");
       return;
@@ -151,7 +160,21 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
       const sumUsdc = res.response.sumUsdc;
       const deposit = res.response.userDeposit;
 
-      console.log("----------", pools, sumSol, sumUsdc, deposit)
+      let solAnnRate = 0;
+      let usdcAnnRate = 0;
+      let oriPositionUserSol = sumSol.positionUserSol;
+      let oriPositionUserUSDC = sumSol.positionUserUSDC;
+
+      if (sumSol.positionSol > sumSol.totalAmount) {
+        solAnnRate = (sumSol.positionSol - sumSol.totalAmount) * 40.0 / 100.0;
+        sumSol.positionUserSol -= sumSol.positionUserSol * solAnnRate / sumSol.positionSol;
+      }
+      if (sumUsdc.positionUSDC > sumUsdc.totalAmount) {
+        usdcAnnRate = (sumUsdc.positionUSDC - sumUsdc.totalAmount) * 40.0 / 100.0;
+        sumUsdc.positionUserUSDC -= sumUsdc.positionUserUSDC * usdcAnnRate / usdcAnnRate;
+      }
+
+      // console.log("----------", pools, sumSol, sumUsdc, deposit, solAnnRate, usdcAnnRate, oriPositionUserSol, oriPositionUserUSDC)
 
       if (!pools || !sumSol || !sumUsdc || !deposit) {
         setLoading(false);
@@ -172,10 +195,12 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
           });
         }
       }
-      console.log("#################", poolsWithVolumes);
       poolsWithVolumes.sort((a, b) => a.tradeVolume - b.tradeVolume);
 
-      let withdrawAmount = (params.portfolio === 'solana' ? amount + 0.0005 : amount + 0.5);
+      let withdrawUserAmount = amount;
+      let adminWithdrawAmount = (params.portfolio === 'solana' ? (solAnnRate * amount / sumSol.positionUserSol) : (usdcAnnRate * amount / sumUsdc.positionUserUsdc));
+      let withdrawAmount = params.portfolio === 'solana' ? withdrawUserAmount + adminWithdrawAmount : withdrawUserAmount + adminWithdrawAmount;
+
       //////////////////////////////////
 
       if (params.portfolio === 'solana') {
@@ -188,13 +213,15 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
         // check admin wallet balance, if ( enough balance ) ? transfer directly admin to user : withdraw meteora and transfer to user
         let userDepositReduceAmount = 0;
-        if (deposit.solAmount < amount) {
-          withdrawAmount = amount - deposit.solAmount;
+        if (deposit.solAmount < withdrawAmount) {
+          withdrawAmount = withdrawAmount - deposit.solAmount;
           userDepositReduceAmount = deposit.solAmount;
 
           for (let i = 0; i < poolsWithVolumes.length; i++) {
             if (poolsWithVolumes[i].pool.positionUserSol <= 0)
               continue;
+
+            let reduceAmount = 0;
 
             const positions = await getPositions(poolsWithVolumes[i].pool.poolAddress);
             if (positions.success === false) {
@@ -202,41 +229,45 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
               return;
             }
 
-            console.log("--------------------------", positions)
             if (poolsWithVolumes[i].pool.positionUserSol < withdrawAmount) {
-              const rate = poolsWithVolumes[i].pool.positionUserSol * 100.0 / poolsWithVolumes[i].pool.positionSOl;
-              console.log("remove step1 : ", rate);
+              const rate = poolsWithVolumes[i].pool.positionUserSol * 100.0 / poolsWithVolumes[i].pool.positionSol;
 
               for (let j = 0; j < positions.response.userPositions.length; j++) {
                 const removeRes = await removeLiquidity(jwtToken, poolsWithVolumes[i].pool.poolAddress, positions.response.userPositions[j].publicKey, rate, false, 'sol');
-                console.log("-----11---", removeRes);
               }
 
+              reduceAmount += poolsWithVolumes[i].pool.positionUserSol;
               withdrawAmount -= poolsWithVolumes[i].pool.positionUserSol;
-
-              const reduceDeposit = poolsWithVolumes[i].pool.positionSOl * rate / 100;
-              await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceDeposit, 1);
+              // await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceDeposit, 1);
             } else {
-              const rate = withdrawAmount * 100.0 / poolsWithVolumes[i].pool.positionSOl;
-              console.log("remove step2 : ", rate);
+              const rate = withdrawAmount * 100.0 / poolsWithVolumes[i].pool.positionSol;
 
               for (let j = 0; j < positions.response.userPositions.length; j++) {
                 const removeRes = await removeLiquidity(jwtToken, poolsWithVolumes[i].pool.poolAddress, positions.response.userPositions[j].publicKey, rate, false, 'sol');
-                console.log("-----22---", removeRes);
               }
 
+              reduceAmount += withdrawAmount;
               withdrawAmount = 0;
-
-              const reduceDeposit = poolsWithVolumes[i].pool.positionSOl * rate / 100;
-              await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceDeposit, 1);
+              // await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, rate, 1);
             }
+
+            const reduceRate = reduceAmount * 100 / sumSol.positionSol;
+            await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceRate, 1);
           }
         } else {
           userDepositReduceAmount = deposit.solAmount;
         }
 
+        if (adminWithdrawAmount > 0) {
+          const benefitRes = await adminGetBenefit(jwtToken, adminWithdrawAmount, 1);
+          if (benefitRes.success === false) {
+            toast.error('Withdraw error!');
+            setLoading(false);
+            return;
+          }
+        }
+
         const res = await adminWithdrawToUserApi(jwtToken, amount, 1);
-        console.log("Withdraw Res : ", res);
         if (res.success === false) {
           toast.error('Withdraw error!');
           setLoading(false);
@@ -256,13 +287,15 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
         // check admin wallet balance, if ( enough balance ) ? transfer directly admin to user : withdraw meteora and transfer to user
         let userDepositReduceAmount = 0;
-        if (deposit.usdcAmount < amount) {
-          withdrawAmount = amount - deposit.usdcAmount;
+        if (deposit.usdcAmount < withdrawAmount) {
+          withdrawAmount = withdrawAmount - deposit.usdcAmount;
           userDepositReduceAmount = deposit.usdcAmount;
 
           for (let i = 0; i < poolsWithVolumes.length; i++) {
             if (poolsWithVolumes[i].pool.positionUserUSDC <= 0)
               continue;
+
+            let reduceAmount = 0;
 
             const positions = await getPositions(poolsWithVolumes[i].pool.poolAddress);
             if (positions.success === false) {
@@ -270,41 +303,45 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
               return;
             }
 
-            console.log("--------------------------", positions)
             if (poolsWithVolumes[i].pool.positionUserUSDC < withdrawAmount) {
               const rate = poolsWithVolumes[i].pool.positionUserUSDC * 100.0 / poolsWithVolumes[i].pool.positionUSDC;
-              console.log("remove step1 : ", rate);
 
               for (let j = 0; j < positions.response.userPositions.length; j++) {
                 const removeRes = await removeLiquidity(jwtToken, poolsWithVolumes[i].pool.poolAddress, positions.response.userPositions[j].publicKey, rate, false, 'usdc');
-                console.log("-----11---", removeRes);
               }
 
+              reduceAmount += poolsWithVolumes[i].pool.positionUserUSDC;
               withdrawAmount -= poolsWithVolumes[i].pool.positionUserUSDC;
-
-              const reduceDeposit = poolsWithVolumes[i].pool.positionUSDC * rate / 100;
-              await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceDeposit, 2);
+              // await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, rate, 2);
             } else {
               const rate = withdrawAmount * 100.0 / poolsWithVolumes[i].pool.positionUSDC;
-              console.log("remove step2 : ", rate, withdrawAmount, poolsWithVolumes[i].pool.positionUSDC, positions);
 
               for (let j = 0; j < positions.response.userPositions.length; j++) {
                 const removeRes = await removeLiquidity(jwtToken, poolsWithVolumes[i].pool.poolAddress, positions.response.userPositions[j].publicKey, rate, false, 'usdc');
-                console.log("-----22---", removeRes);
               }
 
+              reduceAmount += withdrawAmount;
               withdrawAmount = 0;
-
-              const reduceDeposit = poolsWithVolumes[i].pool.positionUSDC * rate / 100;
-              await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceDeposit, 2);
+              // await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, rate, 2);
             }
+
+            const reduceRate = reduceAmount * 100 / sumUsdc.positionUSDC;
+            await userWithdrawApi(jwtToken, poolsWithVolumes[i].pool.poolAddress, reduceRate, 2);
           }
         } else {
           userDepositReduceAmount = amount;
         }
 
+        if (adminWithdrawAmount > 0) {
+          const benefitRes = await adminGetBenefit(jwtToken, adminWithdrawAmount, 2);
+          if (benefitRes.success === false) {
+            toast.error('Withdraw error!');
+            setLoading(false);
+            return;
+          }
+        }
+
         const res = await adminWithdrawToUserApi(jwtToken, amount, 2);
-        console.log("Withdraw Res : ", res);
         if (res.success === false) {
           toast.error('Withdraw error!');
           setLoading(false);
@@ -339,7 +376,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         toast.error("Wallet connect first!");
         return;
       }
-  
+
       if (params.portfolio === "solana") {
         const balance = await connection.getBalance(wallet.publicKey) / Math.pow(10, SOL_DECIMALS);
         setAmount(balance);
@@ -350,7 +387,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         setAmount(usdcBalance);
       }
     } else {
-      setAmount(tradeFunds)
+      setWithdrawPercent(100);
     }
   }
 
@@ -371,95 +408,169 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         setAmount(usdcBalance / 2);
       }
     } else {
-      setAmount(tradeFunds / 2);
+      setWithdrawPercent(50);
     }
   }
 
   return (
     <main className="flex flex-col md:flex-row p-4 md:p-10 gap-6 items-center md:items-start">
-      <VaultCard
-        title={params.portfolio === 'solana' ? "SOL High Yield" : "USDC High Yield"}
-        token={params.portfolio}
-        aum={334000}
-        annReturn={27.5}
-        button={false}
-        width={70}
-      />
-      <div className="w-full md:w-2/3 p-4 md:p-6 rounded-lg shadow-lg flex flex-col items-center md:items-start">
-        <div className="w-full mb-4 md:mb-6">
-          <h3 className="text-xl font-bold mb-2 text-center md:text-left">Your Portfolio</h3>
-          <div className="flex flex-col md:flex-row justify-between text-center md:text-left">
-            <div className="mb-4 md:mb-0">
-              <p className="text-sm text-gray-500">Your Position</p>
-              <p className="text-2xl font-semibold">${tradeFunds.toFixed(2)}</p>
-            </div>
-            <div className="mb-4 md:mb-0">
-              <p className="text-sm text-gray-500">PnL</p>
-              <p className="text-2xl font-semibold">{(tradeFunds - initalDeposit).toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Initial Investment</p>
-              <p className="text-2xl font-semibold">${initalDeposit.toFixed(2)}</p>
+      <>
+        {params.portfolio === 'solana' ? (
+          <VaultCard
+            title="SOL High Yield"
+            token="solana"
+            aum={solPosition?.positionUserSol}
+            annReturn={solPosition?.positionUserSol ? (solPosition?.totalAmount ? (solPosition.positionUserSol * 100 / solPosition.totalAmount - 100) : 0) : 0}
+            button={false}
+            width={100}
+          />
+        ) : (
+          <VaultCard
+            title="USDC High Yield"
+            token="usd-coin"
+            aum={usdcPosition?.positionUserUSDC}
+            annReturn={usdcPosition?.positionUserUSDC ? (usdcPosition?.totalAmount ? (usdcPosition.positionUserUSDC * 100 / usdcPosition.totalAmount - 100) : 0) : 0}
+            button={false}
+            width={100}
+          />
+        )}
+        <div className="w-full md:w-2/3 p-4 md:p-6 rounded-lg shadow-lg flex flex-col items-center md:items-start">
+          <div className="w-full mb-4 md:mb-6">
+            <div className="flex flex-col md:flex-row justify-between text-center md:text-left">
+              <div className="mb-4 md:mb-0">
+                <p className="text-sm text-gray-500">Your Position</p>
+                <p className="text-xl font-semibold">{params.portfolio === 'solana' ? `${tradeFunds.toFixed(3)}SOL` : `$${tradeFunds.toFixed(3)}`}</p>
+              </div>
             </div>
           </div>
-        </div>
+          <div className="w-full mb-4 md:mb-10">
+            <div className="flex flex-col md:flex-row justify-between text-center md:text-left">
+              <div className="mb-4 md:mb-0">
+                <p className="text-sm text-gray-500">PnL</p>
+                <p className="text-xl font-semibold">{params.portfolio === 'solana' ? `${(tradeFunds - initalDeposit).toFixed(3)}SOL` : `$${(tradeFunds - initalDeposit).toFixed(3)}`}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Initial Investment</p>
+                <p className="text-xl font-semibold">{params.portfolio === 'solana' ? `${initalDeposit.toFixed(3)}SOL` : `$${initalDeposit.toFixed(3)}`}</p>
+              </div>
+            </div>
+          </div>
 
-        {/* Toggle Buttons for Deposit/Withdraw */}
-        <div className="w-full flex justify-center md:justify-start mb-4 md:mb-6">
-          <button
-            className={`px-6 py-2 rounded-l-md border-r ${isDeposit ? 'bg-black text-white' : 'bg-gray-100 text-gray-700'}`}
-            onClick={() => setIsDeposit(true)}
-          >
-            Deposit
-          </button>
-          <button
-            className={`px-6 py-2 rounded-r-md ${!isDeposit ? 'bg-black text-white' : 'bg-gray-100 text-gray-700'}`}
-            onClick={() => setIsDeposit(false)}
-          >
-            Withdraw
-          </button>
-        </div>
-
-        {/* Amount Input and Action Buttons */}
-        <div className="w-full">
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-sm font-medium">Enter Amount</p>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleMax}>
-                MAX
-              </button>
-              <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleHalf}>
-                HALF
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center mb-6 gap-2 w-full">
-            <div className="relative w-1/3">
-              {/* <img src="/ETH.svg" alt="ETH" className="w-6 h-6 absolute left-3 top-1/2 transform -translate-y-1/2" /> */}
-              <select className="currencySelect pl-10 pr-4 py-2 border border-r-0 rounded-l-md w-full">
-                <option value="ETH">{params.portfolio}</option>
-              </select>
-            </div>
-            <input
-              type="number"
-              id="amount"
-              value={amount}
-              onChange={handleAmountChange}
-              className="amount px-4 py-2 border rounded-r-md w-2/3"
-              placeholder="Enter amount"
-            />
-          </div>
-          {isDeposit ? (
-            <button className="w-full bg-green-500 text-white py-3 rounded-md hover:bg-green-600 transition duration-300" onClick={handleDeposit}>
+          {/* Toggle Buttons for Deposit/Withdraw */}
+          <div className="w-full flex justify-center md:justify-start mb-4 md:mb-6 vault-border-bottom">
+            <button
+              className={`px-6 py-2 ${isDeposit ? 'font-m border-b' : 'font-s'}`}
+              onClick={() => setIsDeposit(true)}
+            >
               Deposit
             </button>
-          ) : (
-            <button className="w-full bg-red-500 text-white py-3 rounded-md hover:bg-red-600 transition duration-300" onClick={handleWithdraw}>
+            <button
+              className={`px-6 py-2 ${!isDeposit ? 'font-m border-b' : 'font-s'}`}
+              onClick={() => setIsDeposit(false)}
+            >
               Withdraw
             </button>
+          </div>
+
+          {isDeposit ? (
+            <div className="w-full">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm font-medium">Enter Amount</p>
+                <div className="quickButtons space-x-2">
+                  <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleMax}>
+                    MAX
+                  </button>
+                  <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleHalf}>
+                    HALF
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center mb-6 gap-2 w-full vault-border-bottom">
+                <div className="w-1/3 px-4 py-2" style={{ display: 'flex', justifyContent: 'center' }}>
+                  <img src="/ETH.svg" alt="ETH" />
+                  {params.portfolio}
+                  {/* <select className="currencySelect pl-10 pr-4 py-2 border border-r-0 rounded-l-md w-full"> */}
+                  {/* <option value="ETH">{params.portfolio}</option> */}
+                  {/* </select> */}
+                </div>
+                <input
+                  type="number"
+                  id="amount"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  className="amount px-4 py-2"
+                  placeholder="Enter amount"
+                />
+              </div>
+              <button className="deposit-button" onClick={handleDeposit}>
+                Deposit
+              </button>
+            </div>
+          ) : (
+            <div className="w-full">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm font-medium">Enter a percentage</p>
+                <div className="quickButtons space-x-2">
+                  <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleMax}>
+                    100%
+                  </button>
+                  <button className="px-3 py-1 text-sm bg-black-100 border rounded-md font-s hover:bg-black-500 transition" onClick={handleHalf}>
+                    50%
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center mb-6 gap-2 w-full vault-border-bottom">
+                <input
+                  type="number"
+                  id="withdrawPercent"
+                  value={withdrawPercent}
+                  onChange={handleWithdrawAmountChange}
+                  className="amount text-2xl py-2"
+                  style={{ textAlign: 'right' }}
+                  placeholder="Enter amount"
+                  min="0"
+                  max="100"
+                />
+                <div className="text-2xl">
+                  %
+                </div>
+              </div>
+              <div className="w-full mb-4 md:mb-6">
+                <div className="flex flex-col md:flex-row justify-between text-center md:text-left">
+                  <div className="mb-4 md:mb-0">
+                    <p className="text-sm text-gray-500">Withdrawing</p>
+                    <p className="text-l font-semibold">{params.portfolio === 'solana' ? `${(tradeFunds * withdrawPercent / 100).toFixed(3)}SOL` : `$${(tradeFunds * withdrawPercent / 100).toFixed(3)}`}</p>
+                  </div>
+                  <div className="mb-4 md:mb-0">
+                    <p className="text-sm text-gray-500">Success fee(10% of profits)</p>
+                    {withdrawPercent === 0 ? (
+                      <p className="text-l font-semibold">{params.portfolio === 'solana' ? `0SOL` : `$0`}</p>
+                    ) : (
+                      <p className="text-l font-semibold">{params.portfolio === 'solana' ? `${((tradeFunds - initalDeposit) / 10).toFixed(3)}SOL` : `$${((tradeFunds - initalDeposit) / 10).toFixed(3)}`}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="w-full mb-4 md:mb-6">
+                <div className="flex flex-col md:flex-row justify-between text-center md:text-left">
+                  <div className="mb-4 md:mb-0">
+                    <p className="text-sm text-gray-500">You will receive</p>
+                    {withdrawPercent === 0 ? (
+                      <p className="text-2xl font-semibold">{params.portfolio === 'solana' ? `0SOL` : `$0`}</p>
+                    ) : (
+                      <p className="text-2xl font-semibold">{params.portfolio === 'solana' ? `${(tradeFunds * withdrawPercent / 100 - (tradeFunds - initalDeposit) / 10).toFixed(3)}SOL` : `$${(tradeFunds * withdrawPercent / 100 - (tradeFunds - initalDeposit) / 10).toFixed(3)}`}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button className="deposit-button" onClick={handleWithdraw}>
+                Withdraw
+              </button>
+            </div>
           )}
+
         </div>
-      </div>
+      </>
       {loading && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <Oval height="80" visible={true} width="80" color="#CCF869" ariaLabel="oval-loading" />

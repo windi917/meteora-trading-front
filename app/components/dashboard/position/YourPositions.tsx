@@ -84,7 +84,6 @@ function YourPositions() {
 
     setLoading(true);
     const res = await claimFee(jwtToken, mtPair.address, address);
-    console.log("@@@@@@@@@@@@@@@@@@@@@@@@@", res);
     if (res.success === false)
       toast.success("Claim Fee failed!");
     else {

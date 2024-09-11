@@ -86,7 +86,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         res = await removeLiquidity(jwtToken, mtPair.address, position.address, bps, false, 'usdc');
     }
 
-    console.log("##############", res)
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
@@ -107,8 +106,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         outAmount = outAmount / (10 ** 9);
       else if ( sol_usdc === 2 )
         outAmount = outAmount / (10 ** 6);
-
-      console.log("@@@@@@@@@@@@@@@@@@@@@@@@@", outXAmount, outYAmount, outAmount, sol_usdc)
 
       if ( outAmount > 0 )
         await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
@@ -148,7 +145,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         res = await removeLiquidity(jwtToken, mtPair.address, position.address, 100, true, 'usdc');
     }
     
-    console.log("##############", res)
     if (res.success === false)
       toast.error("Remove Liquidity Fail!");
     else {
@@ -160,8 +156,6 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
         outAmount = outAmount / (10 ** 9);
       else if ( sol_usdc === 2 )
         outAmount = outAmount / (10 ** 6);
-
-      console.log("@@@@@@@@@@@@@@@@@@@@@@@@@", outXAmount, outYAmount, outAmount, sol_usdc)
 
       if ( outAmount > 0 )
         await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
