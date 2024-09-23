@@ -91,7 +91,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const fetchPairs = async () => {
     const pairs = await getAllPair();
     if (pairs.success === false) {
-      // toast.error("Get LP Pairs failed!");
       return [];
     }
 
@@ -101,7 +100,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const fetchPair_Positions = async () => {
     const pair = await getPair(pool);
     if (pair.success === false) {
-      // toast.error("Get LP Pairs failed!");
       return;
     }
 
@@ -116,14 +114,12 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
     // positions
     const posRes = await getPositions(pool);
     if (posRes.success === false) {
-      // toast.error("Get Positions failed!");
       return;
     }
 
     const xRes = await getDecimals(pair.response.mint_x);
     const yRes = await getDecimals(pair.response.mint_y);
     if (!xRes.success || !yRes.success) {
-      // toast.error("Get Decimals Error!");
       return;
     }
 
@@ -174,7 +170,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
       const yRes = await getTokenPrice(ySymbol);
 
       if (!xRes.success || !yRes.success) {
-        // toast.error("Get Token Price error!");
         return;
       }
 
@@ -208,7 +203,6 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
   const fetchActiveBin = async () => {
     const res = await getActiveBin(pool);
     if (res.success === false) {
-      // toast.error("Get Active Bin failed!");
       return;
     }
 
@@ -443,7 +437,7 @@ export const MeteoraProvider: React.FC<MeteoraProviderProps> = ({ children }) =>
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    intervalRef.current = setInterval(handleTimer, 10000);
+    intervalRef.current = setInterval(handleTimer, 20000);
   }
 
   return (

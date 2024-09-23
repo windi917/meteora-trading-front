@@ -2,7 +2,6 @@
 
 import { useContext, useState } from 'react';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
 import VaultCard from "../../components/vaultcard";
 import {
   PublicKey,
@@ -19,8 +18,8 @@ import {
 import { useWallet } from "@solana/wallet-adapter-react";
 import { ADMIN_WALLET_ADDRESS, DEPOSIT_SOLANA, DEPOSIT_USDC, SOL_DECIMALS, SOL_MINT, USDC_DECIMALS, USDC_MINT, Pool } from '../../config';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
-import { getPair, getPositions, getUserPositionApi, removeLiquidity, userDepositApi, userWithdrawApi, adminWithdrawToUserApi, userDepositReduceApi, adminGetBenefit } from '@/app/api/api';
-import { connection } from '@/app/utiles';
+import { getPair, getPositions, getUserPositionApi, removeLiquidity, userDepositApi, userWithdrawApi, adminWithdrawToUserApi, userDepositReduceApi, adminGetBenefit, getBalances } from '@/app/api/api';
+import { connection, debouncedToast } from '@/app/utiles';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 
 function Portfolio({ params }: { params: { portfolio: string } }) {
@@ -46,7 +45,25 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
   const handleDeposit = async () => {
     const publicKey = wallet.publicKey;
     if (!publicKey || !wallet.signTransaction || !jwtToken || !userId) {
-      toast.error("Wallet connect first!");
+      debouncedToast("Wallet connect first!", "error");
+      return;
+    }
+
+    let balance = 0;
+    if (params.portfolio === "solana") {
+      balance = await connection.getBalance(publicKey) / Math.pow(10, SOL_DECIMALS);
+    } else {
+      const associatedTokenAddress = await getAssociatedTokenAddress(new PublicKey(USDC_MINT), publicKey);
+      const accountInfo = await getAccount(connection, associatedTokenAddress);
+      balance = Number(accountInfo.amount) / Math.pow(10, 6);
+    }
+
+    if ( amount <= 0 ) {
+      debouncedToast("Input deposit amount correctly!", "error");
+      return;
+    }
+    if ( balance < amount ) {
+      debouncedToast("Insufficient balance!", "error");
       return;
     }
 
@@ -128,11 +145,11 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
       const res = await userDepositApi(jwtToken, userId, amount, depositType, txHash);
 
-      toast.success('Deposit success!');
+      debouncedToast("Deposit success!", "success");
       console.log("Deposit Success!: ", txHash);
       setLoading(false);
     } catch (error) {
-      toast.error("Deposit Error!");
+      debouncedToast("Deposit Error!", "error");
       setLoading(false);
     }
   }
@@ -141,7 +158,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
     const amount = tradeFunds * withdrawPercent / 100;
 
     if (amount <= 0) {
-      toast.error("Input withdraw amount correctly!");
+      debouncedToast("Input withdraw amount correctly!", "error");
       return;
     }
 
@@ -151,7 +168,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
       const res = await getUserPositionApi(jwtToken);
       if (!res.success) {
         setLoading(false);
-        toast.error("Get User Position Error!");
+        debouncedToast("Get User Position Error!", "error");
         return;
       }
 
@@ -178,7 +195,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
       if (!pools || !sumSol || !sumUsdc || !deposit) {
         setLoading(false);
-        toast.error("Get User Position Error!");
+        debouncedToast("Get User Position Error!", "error");
         return;
       }
 
@@ -206,7 +223,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
       if (params.portfolio === 'solana') {
         const trade = sumSol.positionUserSol + deposit.solAmount;
         if (amount > trade) {
-          toast.error(`Max withdraw amount is ${trade}`);
+          debouncedToast(`Max withdraw amount is ${trade}`, "error");
           setLoading(false);
           return;
         }
@@ -225,7 +242,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
             const positions = await getPositions(poolsWithVolumes[i].pool.poolAddress);
             if (positions.success === false) {
-              toast.error("Get Positions Error!");
+              debouncedToast("Get Positions Error!", "error");
               return;
             }
 
@@ -261,7 +278,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         if (adminWithdrawAmount > 0) {
           const benefitRes = await adminGetBenefit(jwtToken, adminWithdrawAmount, 1);
           if (benefitRes.success === false) {
-            toast.error('Withdraw error!');
+            debouncedToast("Withdraw error!", "error");
             setLoading(false);
             return;
           }
@@ -269,18 +286,18 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
         const res = await adminWithdrawToUserApi(jwtToken, amount, 1);
         if (res.success === false) {
-          toast.error('Withdraw error!');
+          debouncedToast("Withdraw error!", "error");
           setLoading(false);
           return;
         }
 
         await userDepositReduceApi(jwtToken, userDepositReduceAmount, 1);
-        toast.success('Withdraw success!');
+        debouncedToast("Withdraw success!", "success");
         setLoading(false);
       } else {
         const trade = sumUsdc.positionUserUSDC + deposit.usdcAmount;
         if (amount > trade) {
-          toast.error(`Max withdraw amount is ${trade}`);
+          debouncedToast(`Max withdraw amount is ${trade}`, "error");
           setLoading(false);
           return;
         }
@@ -299,7 +316,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
             const positions = await getPositions(poolsWithVolumes[i].pool.poolAddress);
             if (positions.success === false) {
-              toast.error("Get Positions Error!");
+              debouncedToast("Get Positions Error!", "error");
               return;
             }
 
@@ -335,7 +352,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
         if (adminWithdrawAmount > 0) {
           const benefitRes = await adminGetBenefit(jwtToken, adminWithdrawAmount, 2);
           if (benefitRes.success === false) {
-            toast.error('Withdraw error!');
+            debouncedToast("Withdraw error!", "error");
             setLoading(false);
             return;
           }
@@ -343,17 +360,17 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
 
         const res = await adminWithdrawToUserApi(jwtToken, amount, 2);
         if (res.success === false) {
-          toast.error('Withdraw error!');
+          debouncedToast("Withdraw error!", "error");
           setLoading(false);
           return;
         }
 
         await userDepositReduceApi(jwtToken, userDepositReduceAmount, 2);
-        toast.success('Withdraw success!');
+        debouncedToast("Withdraw success!", "success");
         setLoading(false);
       }
     } catch (e) {
-      toast.error('Withdraw error!');
+      debouncedToast("Withdraw error!", "error");
       setLoading(false);
     }
   }
@@ -373,7 +390,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
   const handleMax = async () => {
     if (isDeposit) {
       if (!wallet.publicKey) {
-        toast.error("Wallet connect first!");
+        debouncedToast("Wallet connect first!", "error");
         return;
       }
 
@@ -394,7 +411,7 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
   const handleHalf = async () => {
     if (isDeposit) {
       if (!wallet.publicKey) {
-        toast.error("Wallet connect first!");
+        debouncedToast("Wallet connect first!", "error");
         return;
       }
 
@@ -459,13 +476,13 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
           {/* Toggle Buttons for Deposit/Withdraw */}
           <div className="w-full flex justify-center md:justify-start mb-4 md:mb-6 vault-border-bottom">
             <button
-              className={`px-6 py-2 ${isDeposit ? 'font-m border-b' : 'font-s'}`}
+              className={`px-6 py-2 ${isDeposit ? 'font-toggle-active border-b-2' : 'font-toggle'}`}
               onClick={() => setIsDeposit(true)}
             >
               Deposit
             </button>
             <button
-              className={`px-6 py-2 ${!isDeposit ? 'font-m border-b' : 'font-s'}`}
+              className={`px-6 py-2 ${!isDeposit ? 'font-toggle-active border-b-2' : 'font-toggle'}`}
               onClick={() => setIsDeposit(false)}
             >
               Withdraw
@@ -486,9 +503,18 @@ function Portfolio({ params }: { params: { portfolio: string } }) {
                 </div>
               </div>
               <div className="flex items-center mb-6 gap-2 w-full vault-border-bottom">
-                <div className="w-1/3 px-4 py-2" style={{ display: 'flex', justifyContent: 'center' }}>
-                  <img src="/ETH.svg" alt="ETH" />
-                  {params.portfolio}
+                <div className="w-1/3 px-4 py-2" style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                  {params.portfolio === 'solana' ? (
+                    <>
+                      <img src="/SOL.svg" alt="SOL" />
+                      <p>SOL</p>
+                    </>
+                  ) : (
+                    <>
+                      <img src="/USDC.svg" alt="USDC" />
+                      <p>USDC</p>
+                    </>
+                  )}
                   {/* <select className="currencySelect pl-10 pr-4 py-2 border border-r-0 rounded-l-md w-full"> */}
                   {/* <option value="ETH">{params.portfolio}</option> */}
                   {/* </select> */}

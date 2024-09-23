@@ -1,6 +1,28 @@
 import axios from "axios";
 import { METEORA_API_URL, BACKEND_API_URL, JUPITER_API_URL } from "../config";
 
+export const getDailyTotalFundsApi = async (startDate: Date, endDate: Date) => {
+  const config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: BACKEND_API_URL + `/user/getDailyTotalFunds`,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    params: {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    }
+  };
+
+  try {
+    const response = await axios.request(config);
+    return { success: true, response: response.data };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
 export const getPoolPositionApi = async () => {
   const config = {
     method: "get",

@@ -2,11 +2,12 @@ import React, { FC, useCallback, useEffect, useContext, useState } from "react";
 import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Buffer } from "buffer";
 import { BACKEND_API_URL } from "../config";
 import { JwtTokenContext } from "../Provider/JWTTokenProvider";
+import { debouncedToast } from "../utiles";
 
 const WalletInteraction: FC = () => {
   const { publicKey, connected, signMessage } = useWallet() as WalletContextState & {
@@ -23,7 +24,7 @@ const WalletInteraction: FC = () => {
 
   const handleLogin = useCallback(async () => {
     if (!publicKey || !signMessage) {
-      toast.error("Wallet not connected or signMessage not available");
+      debouncedToast("Wallet not connected or signMessage not available", "error");
       return;
     }
 
@@ -55,9 +56,9 @@ const WalletInteraction: FC = () => {
       }
     } catch (error) {
       if (error instanceof Error) {
-        toast.error("Error logging in: " + error.message);
+        debouncedToast("Error logging in: " + error.message, "error");
       } else {
-        toast.error("Error logging in");
+        debouncedToast("Error logging in", "error");
       }
     }
   }, [publicKey, signMessage]);
@@ -70,7 +71,7 @@ const WalletInteraction: FC = () => {
 
   const handleSignup = useCallback(async () => {
     if (!publicKey || !signMessage) {
-      toast.error("Wallet not connected or signMessage not available");
+      debouncedToast("Wallet not connected or signMessage not available", "error");
       return;
     }
 
@@ -100,16 +101,15 @@ const WalletInteraction: FC = () => {
     } catch (error) {
       console.error("Signup error:", error);
       if (error instanceof Error) {
-        toast.error("Error signing up: " + error.message);
+        debouncedToast("Error signing up: " + error.message, "error");
       } else {
-        toast.error("Error signing up");
+        debouncedToast("Error signing up", "error");
       }
     }
   }, [publicKey, signMessage, handleLogin]);
 
   return (
     <div>
-      <ToastContainer />
       <div className="flex justify-center items-center flex-col">
         {isClient && <WalletMultiButton />} {/* Default WalletMultiButton */}
         {connected && isRegistered === false ? (

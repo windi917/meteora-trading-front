@@ -1,6 +1,8 @@
 import { PublicKey, Connection } from '@solana/web3.js';
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import axios, { AxiosResponse } from "axios";
+import { debounce } from "lodash";
+import { toast } from "react-toastify";
 
 export const RPC = "https://mainnet.helius-rpc.com/?api-key=f1d5fa66-a4cd-4cb6-a0c3-49c3500e7c0f";
 export const connection = new Connection(RPC, "finalized");
@@ -96,3 +98,7 @@ export const getMetadataUri = async (mint: PublicKey) => {
     return null;
   }
 }
+
+export const debouncedToast = debounce((message: string, type: 'success' | 'error') => {
+  toast[type](message);
+}, 300, { leading: true, trailing: false });

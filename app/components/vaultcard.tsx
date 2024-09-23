@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+import { getDailyTotalFundsApi } from "../api/api";
 
 type VaultCardProps = {
   title: string;
@@ -38,23 +39,44 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
 
   const [selectedInterval, setSelectedInterval] = useState<string>('1M'); // Default to 1 month
 
-  const fetchData = async (days: string) => {
-    const tokenToFetch = token === 'defi' ? 'solana' : token;
-    const { data } = await axios.get(`https://api.coingecko.com/api/v3/coins/${tokenToFetch}/market_chart`, {
-      params: {
-        vs_currency: 'usd',
-        days: days,
-      },
-    });
-    return data;
+  const fetchData = async (days: number) => {
+    // const tokenToFetch = token === 'defi' ? 'solana' : token;
+    // const { data } = await axios.get(`https://api.coingecko.com/api/v3/coins/${tokenToFetch}/market_chart`, {
+    //   params: {
+    //     vs_currency: 'usd',
+    //     days: days,
+    //   },
+    // });
+
+    // return data;
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+    const result = await getDailyTotalFundsApi(startDate, endDate);
+    if (result.success && result.response) {
+      console.log("#############", result.response);
+      return result.response;
+    } else {
+      throw new Error("Failed to fetch data");
+    }
   };
 
   useEffect(() => {
+    // Helper function to generate date range
+    function generateDateRange(start: Date, end: Date): Date[] {
+      const dates = [];
+      for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+        dates.push(new Date(dt));
+      }
+      return dates;
+    }
+
     const getChartData = async () => {
-      const data = await fetchData(getDays(selectedInterval));
+      const days = getDays(selectedInterval);
+      const data = await fetchData(days);
 
       // Reduce the number of points
-      const reducedData = data.prices.filter((_: PriceData, index: number) => index % 5 === 0); // Select every 5th point
+      // const reducedData = data.prices.filter((_: PriceData, index: number) => index % 5 === 0); // Select every 5th point
 
       const gradient = chartRef.current
         ? chartRef.current.ctx.createLinearGradient(0, 0, 0, 400)
@@ -64,14 +86,26 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
         gradient.addColorStop(1, 'rgba(35, 31, 32, 0)');
       }
 
+      // Generate complete date range
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+      const dateRange = generateDateRange(startDate, endDate);
+
+      // Merge existing data with complete date range
+      const filledData = dateRange.map(date => {
+        const existingEntry = data.find((d: any) => d.date === date.toISOString().split('T')[0]);
+        return existingEntry || { date: date.toISOString().split('T')[0], SOL: 0, USDC: 0 };
+      });
+
+      console.log("filledData", filledData);
       setChartData({
-        labels: reducedData.map((price: PriceData) =>
-          new Date(price[0]).toLocaleDateString()
+        labels: filledData.map((e: any) =>
+          new Date(e.date).toLocaleDateString()
         ),
         datasets: [
           {
             label: `${token} Price`,
-            data: reducedData.map((price: PriceData) => price[1]),
+            data: token === 'solana' ? filledData.map((e: any) => e.SOL) : filledData.map((e: any) => e.USDC),
             fill: true, // Fill with gradient
             backgroundColor: gradient || 'rgba(255, 255, 255, 0.1)', // Gradient effect
             borderColor: '#fff', // Solid white line
@@ -87,17 +121,17 @@ function VaultCard({ title, token, aum, annReturn, button, width }: VaultCardPro
   const getDays = (interval: string) => {
     switch (interval) {
       case '1D':
-        return '1';
+        return 1;
       case '5D':
-        return '5';
+        return 5;
       case '1M':
-        return '30';
+        return 30;
       case '6M':
-        return '180';
+        return 180;
       case '1Y':
-        return '365';
+        return 365;
       default:
-        return '30'; // Default to 1 month
+        return 30;
     }
   };
 

@@ -1,6 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
 import { MTActiveBin, MTPair, MTPosition } from '@/app/config';
 import { removeLiquidity, closePosition, getPoolDepositRole, adminPositionWithdrawApi } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
@@ -8,6 +7,7 @@ import { getMetadataUri } from '@/app/utiles';
 import { SOL_MINT, USDC_MINT } from '@/app/config';
 import { PublicKey } from '@solana/web3.js';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
+import { debouncedToast } from '@/app/utiles';
 
 interface WithdrawProps {
   positionAddr: string;
@@ -56,7 +56,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
 
   const handleWithdraw = async () => {
     if (!mtPair || !position) {
-      toast.error("Pool or Position invalid!");
+      debouncedToast("Pool or Position invalid!", "error");
       return;
     }
 
@@ -66,14 +66,14 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     let sol_usdc = 0;
 
     if (position.totalXAmount === 0 && position.totalYAmount === 0) {
-      toast.error("Nothing to withdraw in this position!");
+      debouncedToast("Nothing to withdraw in this position!", "error");
       setLoading(false);
       return;
     }
     else {
       const positionRole = await getPoolDepositRole(mtPair.address);
       if (!positionRole.success) {
-        toast.error("Get Pool Role Error!");
+        debouncedToast("Get Pool Role Error!", "error");
         return;
       }
 
@@ -87,7 +87,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     }
 
     if (res.success === false)
-      toast.error("Remove Liquidity Fail!");
+      debouncedToast("Remove Liquidity Fail!", "error");
     else {
 
       let outXAmount = 0; 
@@ -110,7 +110,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
       if ( outAmount > 0 )
         await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
 
-      toast.success("Remove Liquidity Success!");
+      debouncedToast("Remove Liquidity Success!", "success");
     }
 
     setLoading(false);
@@ -118,7 +118,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
 
   const handleWithdrawClose = async () => {
     if (!mtPair || !position) {
-      toast.error("Pool or Position invalid!");
+      debouncedToast("Pool or Position invalid!", "error");
       return;
     }
 
@@ -132,7 +132,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     else {
       const positionRole = await getPoolDepositRole(mtPair.address);
       if (!positionRole.success) {
-        toast.error("Get Pool Role Error!");
+        debouncedToast("Get Pool Role Error!", "error");
         return;
       }
 
@@ -146,7 +146,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
     }
     
     if (res.success === false)
-      toast.error("Remove Liquidity Fail!");
+      debouncedToast("Remove Liquidity Fail!", "error");
     else {
       const outXAmount = res.swapXRes.outAmount ? res.swapXRes.outAmount : 0;
       const outYAmount = res.swapYRes.outAmount ? res.swapYRes.outAmount : 0;
@@ -160,7 +160,7 @@ const Withdraw = ({ positionAddr }: WithdrawProps) => {
       if ( outAmount > 0 )
         await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
 
-      toast.success("Remove Liquidity Success!");
+      debouncedToast("Remove Liquidity Success!", "success");
     }
     
     setLoading(false);

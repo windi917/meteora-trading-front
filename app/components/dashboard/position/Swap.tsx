@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
+import { debouncedToast } from '@/app/utiles';
 import { BN } from '@coral-xyz/anchor';
 import { MTPair, MTActiveBin, SOL_MINT, USDC_MINT } from '@/app/config';
 import { getBalances, getActiveBin, swapToken } from '@/app/api/api';
@@ -25,13 +25,13 @@ function Swap() {
 
   const fetchActiveBin = async () => {
     if (!mtPair) {
-      toast.error("Pool Error!");
+      debouncedToast("Pool Error!", "error");
       return;
     }
 
     const res = await getActiveBin(mtPair.address);
     if (res.success === false) {
-      toast.error("Get Active Bin failed!");
+      debouncedToast("Get Active Bin failed!", "error");
       return;
     }
 
@@ -52,7 +52,7 @@ function Swap() {
 
     const resX = await getBalances(mtPair.mint_x);
     if (!resX.success) {
-      toast.error("Get Balances fail!");
+      debouncedToast("Get Balances fail!", "error");
       return;
     }
 
@@ -60,7 +60,7 @@ function Swap() {
 
     const resY = await getBalances(mtPair.mint_y);
     if (!resY.success) {
-      toast.error("Get Balances fail!");
+      debouncedToast("Get Balances fail!", "error");
       return;
     }
 
@@ -99,7 +99,7 @@ function Swap() {
 
   const handleSwap = async () => {
     if (!mtPair) {
-      toast.error("Pool Error!");
+      debouncedToast("Pool Error!", "error");
       return;
     }
 
@@ -107,7 +107,7 @@ function Swap() {
     const yDecimals = await getDecimals(mtPair.mint_y);
 
     if (!xDecimals.success || !yDecimals.success) {
-      toast.error("Get Decimals Error!");
+      debouncedToast("Get Decimals Error!", "error");
       return;
     }
 
@@ -119,7 +119,7 @@ function Swap() {
 
     const res = await swapToken(jwtToken, mtPair.address, swapAmount, swapXtoY);
     if (!res.success) {
-      toast.error("Swap error!");
+      debouncedToast("Swap error!", "error");
       setLoading(false);
       return;
     }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { Oval } from "react-loader-spinner";
-import { toast } from "react-toastify";
 import { Box, Button, Typography, TextField } from '@mui/material';
 import { TooltipProps } from 'recharts';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -16,6 +15,7 @@ import { getDecimals, getMetadataUri } from '@/app/utiles';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 import RangeSlider from '../../Progress';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { debouncedToast } from '@/app/utiles';
 
 interface AddPositionProps {
   positionAddr: string;
@@ -211,7 +211,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
     const resX = await getBalances(SOL_MINT);
     if (resX.success === false) {
-      toast.error("Get Balances fail!");
+      debouncedToast("Get Balances fail!", "error");
       return;
     }
 
@@ -219,7 +219,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
     const resY = await getBalances(USDC_MINT);
     if (resY.success === false) {
-      toast.error("Get Balances fail!");
+      debouncedToast("Get Balances fail!", "error");
       return;
     }
 
@@ -235,7 +235,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       // Get Pool deposit role
       const poolRoleRes = await getPoolDepositRole(mtPair.address);
       if (!poolRoleRes.success) {
-        toast.error("Get Pool Role Error!");
+        debouncedToast("Get Pool Role Error!", "error");
         return;
       }
 
@@ -250,7 +250,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       const xDecimals = await getDecimals(mtPair.mint_x);
       const yDecimals = await getDecimals(mtPair.mint_y);
       if (!xDecimals.success || !yDecimals.success) {
-        toast.error("Get Decimals Error!");
+        debouncedToast("Get Decimals Error!", "error");
         return;
       }
 
@@ -283,7 +283,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       const maxP = await getPriceByBinId(mtPair.address, maxBin);
 
       if (minP.success === false || maxP.success === false) {
-        toast.error("Get Price by Bin ID fail!");
+        debouncedToast("Get Price by Bin ID fail!", "error");
         return;
       }
 
@@ -297,7 +297,7 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       // fetch bin arrays
       const res = await getBinArrays(mtPair.address, minBin, maxBin);
       if (res.success === false) {
-        toast.error("Get Bin Arrays Error!");
+        debouncedToast("Get Bin Arrays Error!", "error");
         return;
       }
 
@@ -313,17 +313,17 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
   const handleAddLiquidity = async () => {
     if (!mtPair || !activeBin || !wallet.publicKey) {
-      toast.error("Pool or ActiveBin invalid!");
+      debouncedToast("Pool or ActiveBin invalid!", "error");
       return;
     }
 
     if (position && depositAmount <= 0) {
-      toast.error("Input deposit amount correctly!");
+      debouncedToast("Input deposit amount correctly!", "error");
       return;
     }
     if ((selectedDepositToken === 'SOL' && depositAmount > solBalance) ||
       (selectedDepositToken === 'USDC' && depositAmount > usdcBalance)) {
-      toast.error("Funds not enough!");
+      debouncedToast("Funds not enough!", "error");
       return;
     }
 
@@ -331,23 +331,23 @@ function AddPosition({ positionAddr }: AddPositionProps) {
 
     if (position === undefined) {
       const res = await addPosition(jwtToken, mtPair.address, selectedStrategy, 0, 0, minBinId, maxBinId);
-      if (res.success === false) toast.error("Add Position Fail!");
+      if (res.success === false) debouncedToast("Add Position Fail!", "error");
       else {
         fetchBalance();
-        toast.success("Add Position Success!");
+        debouncedToast("Add Position Success!", "success");
       }
     } else {
       const userDepositRes = await getUserDepositAmountApi();
       if (!userDepositRes.success) {
         setLoading(false);
-        toast.error("Get user deposit error!");
+        debouncedToast("Get user deposit error!", "error");
         return;
       }
 
       if ((selectedDepositToken === "SOL" && userDepositRes.response.sol < depositAmount) ||
         (selectedDepositToken === "USDC" && userDepositRes.response.usdc < depositAmount)) {
         setLoading(false);
-        toast.error("Deposit Amount not enough!");
+        debouncedToast("Deposit Amount not enough!", "error");
         return;
       }
 
@@ -359,15 +359,16 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       } else if (selectedDepositToken === 'USDC' && ((selectedOption === 'XToken' && mtPair.mint_x === USDC_MINT) || (selectedOption === 'YToken' && mtPair.mint_y === USDC_MINT))) {
         yAmountLamport = depositAmount;
       } else {
+        console.log(depositAmount, Math.floor(depositAmount * (10 ** SOL_DECIMALS)));
         const swapRes = await jupiterSwapApi(
           jwtToken,
           selectedDepositToken === 'SOL' ? SOL_MINT : USDC_MINT,
           selectedOption === 'XToken' ? mtPair.mint_x : mtPair.mint_y,
-          selectedDepositToken === 'SOL' ? depositAmount * (10 ** SOL_DECIMALS) : depositAmount * (10 ** USDC_DECIMALS)
+          selectedDepositToken === 'SOL' ? Math.floor(depositAmount * (10 ** SOL_DECIMALS)) : Math.floor(depositAmount * (10 ** USDC_DECIMALS))
         );
 
         if (!swapRes.success) {
-          toast.error("Jupiter swap error!");
+          debouncedToast("Jupiter swap error!", "error");
           setLoading(false);
           return;
         }
@@ -377,10 +378,10 @@ function AddPosition({ positionAddr }: AddPositionProps) {
       }
 
       const res = await addLiquidity(jwtToken, mtPair.address, position.address, selectedStrategy, xAmountLamport, yAmountLamport, position.lowerBinId, position.upperBinId, selectedDepositToken, depositAmount);
-      if (res.success === false) toast.error("Add Liquidity Fail!");
+      if (res.success === false) debouncedToast("Add Liquidity Fail!", "error");
       else {
         fetchBalance();
-        toast.success("Add Liquidity Success!");
+        debouncedToast("Add Liquidity Success!", "success");
       }
     }
     setLoading(false);

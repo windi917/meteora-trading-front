@@ -8,7 +8,7 @@ import Withdraw from '../WithdrawComponent';
 import { claimFee, getTokenPrice } from '@/app/api/api';
 import { JwtTokenContext } from '@/app/Provider/JWTTokenProvider';
 import { Oval } from "react-loader-spinner";
-import { toast } from 'react-toastify';
+import { debouncedToast } from '@/app/utiles';
 import { MeteoraContext } from '@/app/Provider/MeteoraProvider';
 import { toDecimalString } from '@/app/utiles';
 
@@ -36,7 +36,7 @@ function YourPositions() {
         const yRes = await getTokenPrice(ySymbol);
 
         if (!xRes.success || !yRes.success) {
-          toast.error("Get Token Price error!");
+          debouncedToast("Get Token Price error!", "error");
           return;
         }
 
@@ -85,7 +85,7 @@ function YourPositions() {
     setLoading(true);
     const res = await claimFee(jwtToken, mtPair.address, address);
     if (res.success === false)
-      toast.success("Claim Fee failed!");
+      debouncedToast("Claim Fee failed!", "error");
     else {
 
       // let outXAmount = 0; 
@@ -110,7 +110,7 @@ function YourPositions() {
       // if ( outAmount > 0 )
       //   await adminPositionWithdrawApi(jwtToken, mtPair.address, bps, outAmount);
 
-      toast.success("Claim Fee success!");
+      debouncedToast("Claim Fee success!", "success");
     }
 
     setLoading(false);
